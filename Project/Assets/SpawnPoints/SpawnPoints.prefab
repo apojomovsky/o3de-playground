@@ -1,0 +1,269 @@
+{
+    "ContainerEntity": {
+        "Id": "ContainerEntity",
+        "Name": "SpawnPoints",
+        "Components": {
+            "Component_[13000000000000000001]": {
+                "$type": "EditorDisabledCompositionComponent",
+                "Id": 13000000000000000001
+            },
+            "Component_[13000000000000000002]": {
+                "$type": "EditorEntitySortComponent",
+                "Id": 13000000000000000002,
+                "Child Entity Order": [
+                    "Entity_[2300000000001]",
+                    "Entity_[2300000000002]",
+                    "Entity_[2300000000003]",
+                    "Entity_[2300000000004]"
+                ]
+            },
+            "Component_[13000000000000000003]": {
+                "$type": "EditorPrefabComponent",
+                "Id": 13000000000000000003
+            },
+            "Component_[13000000000000000004]": {
+                "$type": "EditorLockComponent",
+                "Id": 13000000000000000004
+            },
+            "Component_[13000000000000000005]": {
+                "$type": "EditorPendingCompositionComponent",
+                "Id": 13000000000000000005
+            },
+            "Component_[13000000000000000006]": {
+                "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                "Id": 13000000000000000006,
+                "Parent Entity": ""
+            },
+            "Component_[13000000000000000007]": {
+                "$type": "EditorEntityIconComponent",
+                "Id": 13000000000000000007
+            },
+            "Component_[13000000000000000008]": {
+                "$type": "EditorInspectorComponent",
+                "Id": 13000000000000000008
+            },
+            "Component_[13000000000000000009]": {
+                "$type": "EditorOnlyEntityComponent",
+                "Id": 13000000000000000009
+            },
+            "Component_[13000000000000000010]": {
+                "$type": "EditorVisibilityComponent",
+                "Id": 13000000000000000010
+            }
+        }
+    },
+    "Entities": {
+        "Entity_[2300000000001]": {
+            "Id": "Entity_[2300000000001]",
+            "Name": "SpawnPoint_1",
+            "Components": {
+                "Component_[13000000000000000101]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 13000000000000000101,
+                    "Parent Entity": "ContainerEntity",
+                    "Transform Data": {
+                        "Translate": [
+                            3.0,
+                            0.0,
+                            0.1
+                        ]
+                    }
+                },
+                "Component_[13000000000000000102]": {
+                    "$type": "TagComponent",
+                    "Id": 13000000000000000102,
+                    "Tags": [
+                        "SpawnPoint"
+                    ]
+                },
+                "Component_[13000000000000000103]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 13000000000000000103
+                },
+                "Component_[13000000000000000104]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 13000000000000000104
+                },
+                "Component_[13000000000000000105]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 13000000000000000105
+                },
+                "Component_[13000000000000000106]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 13000000000000000106
+                },
+                "Component_[13000000000000000107]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 13000000000000000107
+                },
+                "Component_[13000000000000000108]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 13000000000000000108
+                },
+                "Component_[13000000000000000109]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 13000000000000000109
+                }
+            }
+        },
+        "Entity_[2300000000002]": {
+            "Id": "Entity_[2300000000002]",
+            "Name": "SpawnPoint_2",
+            "Components": {
+                "Component_[13000000000000000201]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 13000000000000000201,
+                    "Parent Entity": "ContainerEntity",
+                    "Transform Data": {
+                        "Translate": [
+                            -3.0,
+                            0.0,
+                            0.1
+                        ]
+                    }
+                },
+                "Component_[13000000000000000202]": {
+                    "$type": "TagComponent",
+                    "Id": 13000000000000000202,
+                    "Tags": [
+                        "SpawnPoint"
+                    ]
+                },
+                "Component_[13000000000000000203]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 13000000000000000203
+                },
+                "Component_[13000000000000000204]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 13000000000000000204
+                },
+                "Component_[13000000000000000205]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 13000000000000000205
+                },
+                "Component_[13000000000000000206]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 13000000000000000206
+                },
+                "Component_[13000000000000000207]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 13000000000000000207
+                },
+                "Component_[13000000000000000208]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 13000000000000000208
+                },
+                "Component_[13000000000000000209]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 13000000000000000209
+                }
+            }
+        },
+        "Entity_[2300000000003]": {
+            "Id": "Entity_[2300000000003]",
+            "Name": "SpawnPoint_3",
+            "Components": {
+                "Component_[13000000000000000301]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 13000000000000000301,
+                    "Parent Entity": "ContainerEntity",
+                    "Transform Data": {
+                        "Translate": [
+                            0.0,
+                            3.0,
+                            0.1
+                        ]
+                    }
+                },
+                "Component_[13000000000000000302]": {
+                    "$type": "TagComponent",
+                    "Id": 13000000000000000302,
+                    "Tags": [
+                        "SpawnPoint"
+                    ]
+                },
+                "Component_[13000000000000000303]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 13000000000000000303
+                },
+                "Component_[13000000000000000304]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 13000000000000000304
+                },
+                "Component_[13000000000000000305]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 13000000000000000305
+                },
+                "Component_[13000000000000000306]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 13000000000000000306
+                },
+                "Component_[13000000000000000307]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 13000000000000000307
+                },
+                "Component_[13000000000000000308]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 13000000000000000308
+                },
+                "Component_[13000000000000000309]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 13000000000000000309
+                }
+            }
+        },
+        "Entity_[2300000000004]": {
+            "Id": "Entity_[2300000000004]",
+            "Name": "SpawnPoint_4",
+            "Components": {
+                "Component_[13000000000000000401]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 13000000000000000401,
+                    "Parent Entity": "ContainerEntity",
+                    "Transform Data": {
+                        "Translate": [
+                            0.0,
+                            -3.0,
+                            0.1
+                        ]
+                    }
+                },
+                "Component_[13000000000000000402]": {
+                    "$type": "TagComponent",
+                    "Id": 13000000000000000402,
+                    "Tags": [
+                        "SpawnPoint"
+                    ]
+                },
+                "Component_[13000000000000000403]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 13000000000000000403
+                },
+                "Component_[13000000000000000404]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 13000000000000000404
+                },
+                "Component_[13000000000000000405]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 13000000000000000405
+                },
+                "Component_[13000000000000000406]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 13000000000000000406
+                },
+                "Component_[13000000000000000407]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 13000000000000000407
+                },
+                "Component_[13000000000000000408]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 13000000000000000408
+                },
+                "Component_[13000000000000000409]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 13000000000000000409
+                }
+            }
+        }
+    }
+}
