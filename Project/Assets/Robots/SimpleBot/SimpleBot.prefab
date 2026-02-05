@@ -1,0 +1,282 @@
+{
+    "ContainerEntity": {
+        "Id": "ContainerEntity",
+        "Name": "SimpleBot",
+        "Components": {
+            "Component_[1000000000000000001]": {
+                "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                "Id": 1000000000000000001,
+                "Parent Entity": ""
+            },
+            "Component_[1000000000000000002]": {
+                "$type": "EditorDisabledCompositionComponent",
+                "Id": 1000000000000000002
+            },
+            "Component_[1000000000000000003]": {
+                "$type": "EditorVisibilityComponent",
+                "Id": 1000000000000000003
+            },
+            "Component_[1000000000000000004]": {
+                "$type": "EditorEntityIconComponent",
+                "Id": 1000000000000000004
+            },
+            "Component_[1000000000000000005]": {
+                "$type": "EditorOnlyEntityComponent",
+                "Id": 1000000000000000005
+            },
+            "Component_[1000000000000000006]": {
+                "$type": "EditorPrefabComponent",
+                "Id": 1000000000000000006
+            },
+            "Component_[1000000000000000007]": {
+                "$type": "EditorLockComponent",
+                "Id": 1000000000000000007
+            },
+            "Component_[1000000000000000008]": {
+                "$type": "EditorEntitySortComponent",
+                "Id": 1000000000000000008,
+                "Child Entity Order": [
+                    "Entity_[2000000000000000001]"
+                ]
+            },
+            "Component_[1000000000000000009]": {
+                "$type": "EditorInspectorComponent",
+                "Id": 1000000000000000009
+            },
+            "Component_[1000000000000000010]": {
+                "$type": "EditorPendingCompositionComponent",
+                "Id": 1000000000000000010
+            }
+        }
+    },
+    "Entities": {
+        "Entity_[2000000000000000001]": {
+            "Id": "Entity_[2000000000000000001]",
+            "Name": "base_link",
+            "Components": {
+                "Component_[2000000000000000001]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 2000000000000000001,
+                    "Parent Entity": "ContainerEntity"
+                },
+                "Component_[2000000000000000002]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 2000000000000000002
+                },
+                "Component_[2000000000000000003]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 2000000000000000003
+                },
+                "Component_[2000000000000000004]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 2000000000000000004
+                },
+                "Component_[2000000000000000005]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 2000000000000000005
+                },
+                "Component_[2000000000000000006]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 2000000000000000006
+                },
+                "Component_[2000000000000000007]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 2000000000000000007
+                },
+                "Component_[2000000000000000008]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 2000000000000000008
+                },
+                "Component_[2000000000000000009]": {
+                    "$type": "EditorEntitySortComponent",
+                    "Id": 2000000000000000009,
+                    "Child Entity Order": [
+                        "Entity_[3000000000000000001]"
+                    ]
+                },
+                "Component_[2000000000000000010]": {
+                    "$type": "ROS2FrameEditorComponent",
+                    "Id": 2000000000000000010,
+                    "ROS2FrameConfiguration": {
+                        "Namespace Configuration": {
+                            "Namespace Strategy": 1
+                        },
+                        "Frame Name": "base_link"
+                    }
+                },
+                "Component_[2000000000000000011]": {
+                    "$type": "EditorCylinderShapeComponent",
+                    "Id": 2000000000000000011,
+                    "ShapeColor": [
+                        0.2,
+                        0.6,
+                        1.0
+                    ],
+                    "CylinderShape": {
+                        "Configuration": {
+                            "DrawColor": [
+                                0.2,
+                                0.6,
+                                1.0
+                            ],
+                            "Height": 0.15,
+                            "Radius": 0.2
+                        }
+                    }
+                },
+                "Component_[2000000000000000012]": {
+                    "$type": "EditorShapeColliderComponent",
+                    "Id": 2000000000000000012,
+                    "ColliderConfiguration": {
+                        "CollisionLayer": {
+                            "Index": 0
+                        },
+                        "MaterialSlots": {
+                            "Slots": [
+                                {
+                                    "Name": "Entire object"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "Component_[2000000000000000013]": {
+                    "$type": "EditorRigidBodyComponent",
+                    "Id": 2000000000000000013,
+                    "Configuration": {
+                        "Initial linear velocity": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Initial angular velocity": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Linear damping": 0.15,
+                        "Angular damping": 0.15,
+                        "Mass": 5.0,
+                        "Gravity enabled": true,
+                        "Kinematic": false,
+                        "Start Asleep": false,
+                        "CCD enabled": false,
+                        "Compute COM": true,
+                        "Compute inertia": true
+                    }
+                },
+                "Component_[2000000000000000014]": {
+                    "$type": "GenericComponentWrapper",
+                    "Id": 2000000000000000014,
+                    "m_template": {
+                        "$type": "ROS2RobotControlComponent",
+                        "SubscriberConfiguration": {
+                            "Type": "geometry_msgs::msg::Twist",
+                            "Topic": "cmd_vel"
+                        }
+                    }
+                },
+                "Component_[2000000000000000015]": {
+                    "$type": "GenericComponentWrapper",
+                    "Id": 2000000000000000015,
+                    "m_template": {
+                        "$type": "RigidBodyTwistControlComponent"
+                    }
+                }
+            }
+        },
+        "Entity_[3000000000000000001]": {
+            "Id": "Entity_[3000000000000000001]",
+            "Name": "lidar",
+            "Components": {
+                "Component_[3000000000000000001]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 3000000000000000001,
+                    "Parent Entity": "Entity_[2000000000000000001]",
+                    "Transform Data": {
+                        "Translate": [
+                            0.0,
+                            0.0,
+                            0.1
+                        ]
+                    }
+                },
+                "Component_[3000000000000000002]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 3000000000000000002
+                },
+                "Component_[3000000000000000003]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 3000000000000000003
+                },
+                "Component_[3000000000000000004]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 3000000000000000004
+                },
+                "Component_[3000000000000000005]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 3000000000000000005
+                },
+                "Component_[3000000000000000006]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 3000000000000000006
+                },
+                "Component_[3000000000000000007]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 3000000000000000007
+                },
+                "Component_[3000000000000000008]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 3000000000000000008
+                },
+                "Component_[3000000000000000009]": {
+                    "$type": "EditorEntitySortComponent",
+                    "Id": 3000000000000000009
+                },
+                "Component_[3000000000000000010]": {
+                    "$type": "ROS2FrameEditorComponent",
+                    "Id": 3000000000000000010,
+                    "ROS2FrameConfiguration": {
+                        "Namespace Configuration": {
+                            "Namespace Strategy": 1
+                        },
+                        "Frame Name": "lidar"
+                    }
+                },
+                "Component_[3000000000000000011]": {
+                    "$type": "GenericComponentWrapper",
+                    "Id": 3000000000000000011,
+                    "m_template": {
+                        "$type": "ROS2LidarSensorComponent",
+                        "SensorConfiguration": {
+                            "Publishers": {
+                                "sensor_msgs::msg::PointCloud2": {
+                                    "Type": "sensor_msgs::msg::PointCloud2",
+                                    "Topic": "pc"
+                                }
+                            }
+                        },
+                        "lidarConfiguration": {
+                            "LidarParameters": {
+                                "Layers": 1,
+                                "Points per layer": 360,
+                                "Min horizontal angle": -180.0,
+                                "Max horizontal angle": 180.0,
+                                "Min vertical angle": 0.0,
+                                "Max vertical angle": 0.0,
+                                "Min range": 0.1,
+                                "Max range": 10.0
+                            }
+                        },
+                        "lidarCore": {
+                            "lidarConfiguration": {
+                                "lidarImplementation": "Scene Queries",
+                                "IgnoredLayerIndices": []
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -19,7 +19,8 @@
                 "$type": "EditorEntitySortComponent",
                 "Id": 11000000000000000004,
                 "Child Entity Order": [
-                    "Entity_[2100000000001]"
+                    "Entity_[2100000000001]",
+                    "Entity_[2100000000005]"
                 ]
             },
             "Component_[11000000000000000005]": {
@@ -303,6 +304,264 @@
                     "Id": 11000000000000000409
                 }
             }
+        },
+        "Entity_[2100000000005]": {
+            "Id": "Entity_[2100000000005]",
+            "Name": "RobotSpawner",
+            "Components": {
+                "Component_[11000000000000000501]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000000501,
+                    "Parent Entity": "Entity_[2100000000000]"
+                },
+                "Component_[11000000000000000502]": {
+                    "$type": "EditorEntitySortComponent",
+                    "Id": 11000000000000000502,
+                    "Child Entity Order": [
+                        "Entity_[2100000000006]",
+                        "Entity_[2100000000007]",
+                        "Entity_[2100000000008]",
+                        "Entity_[2100000000009]"
+                    ]
+                },
+                "Component_[11000000000000000503]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000000503
+                },
+                "Component_[11000000000000000504]": {
+                    "$type": "ROS2SpawnerEditorComponent",
+                    "Id": 11000000000000000504,
+                    "Controller": {
+                        "Configuration": {
+                            "Editor entity id": "",
+                            "Spawnables": {
+                                "simplebot": {
+                                    "assetId": {
+                                        "guid": "{00000000-0000-0000-0000-000000000000}",
+                                        "subId": 0
+                                    },
+                                    "assetHint": "assets/robots/simplebot/simplebot.spawnable"
+                                }
+                            }
+                        }
+                    }
+                },
+                "Component_[11000000000000000505]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000000505
+                },
+                "Component_[11000000000000000506]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000000506
+                },
+                "Component_[11000000000000000507]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000000507
+                },
+                "Component_[11000000000000000508]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000000508
+                },
+                "Component_[11000000000000000509]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000000509
+                },
+                "Component_[11000000000000000510]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000000510
+                }
+            }
+        },
+        "Entity_[2100000000006]": {
+            "Id": "Entity_[2100000000006]",
+            "Name": "SpawnPoint_1",
+            "Components": {
+                "Component_[11000000000000000601]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000000601,
+                    "Parent Entity": "Entity_[2100000000005]",
+                    "Transform Data": {
+                        "Translate": [
+                            -3.0,
+                            -3.0,
+                            0.2
+                        ]
+                    }
+                },
+                "Component_[11000000000000000602]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000000602
+                },
+                "Component_[11000000000000000603]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000000603
+                },
+                "Component_[11000000000000000604]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000000604
+                },
+                "Component_[11000000000000000605]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000000605
+                },
+                "Component_[11000000000000000606]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000000606
+                },
+                "Component_[11000000000000000607]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000000607
+                },
+                "Component_[11000000000000000608]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000000608
+                }
+            }
+        },
+        "Entity_[2100000000007]": {
+            "Id": "Entity_[2100000000007]",
+            "Name": "SpawnPoint_2",
+            "Components": {
+                "Component_[11000000000000000701]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000000701,
+                    "Parent Entity": "Entity_[2100000000005]",
+                    "Transform Data": {
+                        "Translate": [
+                            3.0,
+                            -3.0,
+                            0.2
+                        ]
+                    }
+                },
+                "Component_[11000000000000000702]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000000702
+                },
+                "Component_[11000000000000000703]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000000703
+                },
+                "Component_[11000000000000000704]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000000704
+                },
+                "Component_[11000000000000000705]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000000705
+                },
+                "Component_[11000000000000000706]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000000706
+                },
+                "Component_[11000000000000000707]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000000707
+                },
+                "Component_[11000000000000000708]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000000708
+                }
+            }
+        },
+        "Entity_[2100000000008]": {
+            "Id": "Entity_[2100000000008]",
+            "Name": "SpawnPoint_3",
+            "Components": {
+                "Component_[11000000000000000801]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000000801,
+                    "Parent Entity": "Entity_[2100000000005]",
+                    "Transform Data": {
+                        "Translate": [
+                            -3.0,
+                            3.0,
+                            0.2
+                        ]
+                    }
+                },
+                "Component_[11000000000000000802]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000000802
+                },
+                "Component_[11000000000000000803]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000000803
+                },
+                "Component_[11000000000000000804]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000000804
+                },
+                "Component_[11000000000000000805]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000000805
+                },
+                "Component_[11000000000000000806]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000000806
+                },
+                "Component_[11000000000000000807]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000000807
+                },
+                "Component_[11000000000000000808]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000000808
+                }
+            }
+        },
+        "Entity_[2100000000009]": {
+            "Id": "Entity_[2100000000009]",
+            "Name": "SpawnPoint_4",
+            "Components": {
+                "Component_[11000000000000000901]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000000901,
+                    "Parent Entity": "Entity_[2100000000005]",
+                    "Transform Data": {
+                        "Translate": [
+                            3.0,
+                            3.0,
+                            0.2
+                        ]
+                    }
+                },
+                "Component_[11000000000000000902]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000000902
+                },
+                "Component_[11000000000000000903]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000000903
+                },
+                "Component_[11000000000000000904]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000000904
+                },
+                "Component_[11000000000000000905]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000000905
+                },
+                "Component_[11000000000000000906]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000000906
+                },
+                "Component_[11000000000000000907]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000000907
+                },
+                "Component_[11000000000000000908]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000000908
+                }
+            }
+        }
+    },
+    "Instances": {
+        "Instance_[4100000000001]": {
+            "InstanceAlias": "SpawnPoints_instance",
+            "Patches": [],
+            "Source": "assets/spawnpoints/spawnpoints.spawnable"
         }
     }
 }
