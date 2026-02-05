@@ -182,6 +182,22 @@
                     "m_template": {
                         "$type": "RigidBodyTwistControlComponent"
                     }
+                },
+                "Component_[2000000000000000016]": {
+                    "$type": "GenericComponentWrapper",
+                    "Id": 2000000000000000016,
+                    "m_template": {
+                        "$type": "ROS2OdometrySensorComponent",
+                        "SensorConfiguration": {
+                            "Publishers": {
+                                "nav_msgs::msg::Odometry": {
+                                    "Type": "nav_msgs::msg::Odometry",
+                                    "Topic": "odom"
+                                }
+                            },
+                            "Frequency Hz": 30.0
+                        }
+                    }
                 }
             }
         },

@@ -7,6 +7,6 @@
     "user_tags": ["ROS2", "Robotics", "Playground"],
     "engine": "o3de",
     "external_subdirectories": ["Gem"],
-    "gem_names": ["ROS2>=3.3.0"],
+    "gem_names": ["ROS2>=3.3.0", "ROS2Sensors", "ROS2Controllers"],
     "engine_version": "2510.2"
 }

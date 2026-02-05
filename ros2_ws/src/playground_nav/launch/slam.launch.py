@@ -32,8 +32,8 @@ def generate_launch_description():
         name="pointcloud_to_laserscan",
         namespace=namespace,
         remappings=[
-            ("cloud_in", "cloud_in"),
-            ("scan", "scan"),
+            ("cloud_in", "/pc"),
+            ("scan", "/scan"),
         ],
         parameters=[
             {
