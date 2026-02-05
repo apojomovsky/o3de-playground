@@ -76,9 +76,28 @@ Or launch the game:
 /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
 ```
 
-### AMD GPU (Headless Mode)
+### AMD GPU (Wayland Host with XWayland)
 
-Run the container with AMD GPU support:
+Run the container with AMD GPU support using XWayland for display:
+
+```bash
+docker run --device=/dev/kfd --device=/dev/dri \
+  --group-add video \
+  --security-opt seccomp=unconfined \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -e DISPLAY=$DISPLAY \
+  -e QT_QPA_PLATFORM=xcb \
+  --name o3de-playground \
+  o3de-playground:latest
+```
+
+**Inside the container**, launch the O3DE Editor:
+
+```bash
+/data/workspace/Project/build/linux/bin/profile/Editor
+```
+
+**Headless Fallback**: If display issues occur, use headless mode:
 
 ```bash
 docker run --device=/dev/kfd --device=/dev/dri \

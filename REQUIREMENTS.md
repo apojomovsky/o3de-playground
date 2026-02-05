@@ -256,17 +256,19 @@ cd ros2_ws && colcon build --symlink-install
 
 **Answer**: Multi-GPU support with different strategies per platform.
 
-**AMD 780M (Wayland host)**:
+**AMD 780M (Wayland host with XWayland)**:
 ```bash
 docker run \
   --device=/dev/kfd --device=/dev/dri \
   --group-add video \
   --security-opt seccomp=unconfined \
-  -v $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/$WAYLAND_DISPLAY \
-  -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -e DISPLAY=$DISPLAY \
+  -e QT_QPA_PLATFORM=xcb \
   <image>
 ```
-**Warning**: No established O3DE+Wayland pattern. Headless mode (GameLauncher) recommended.
+**Note**: Uses XWayland compatibility layer for X11 applications on Wayland host.
+**Fallback**: Headless mode available via `Playground.GameLauncher` if display issues occur.
 
 **NVIDIA RTX 4050 (X11 host)**:
 ```bash

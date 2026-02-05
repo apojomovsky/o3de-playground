@@ -32,11 +32,20 @@ This project provides a ready-to-use environment for:
 cd docker
 docker build -t o3de-playground:latest .
 
-# Run with NVIDIA GPU
+# Run with NVIDIA GPU (X11)
 xhost +local:docker
 docker run --runtime=nvidia --gpus all \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -e DISPLAY=$DISPLAY \
+  o3de-playground:latest
+
+# Run with AMD GPU (Wayland host using XWayland)
+docker run --device=/dev/kfd --device=/dev/dri \
+  --group-add video \
+  --security-opt seccomp=unconfined \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -e DISPLAY=$DISPLAY \
+  -e QT_QPA_PLATFORM=xcb \
   o3de-playground:latest
 
 # Inside container: Launch Editor
