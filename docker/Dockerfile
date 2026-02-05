@@ -77,7 +77,11 @@ ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
 # Project Variables
 ENV PROJECT_ROOT=$WORKSPACE/Project
 
-# Clone and setup O3DE, O3DE Extras, and Project
+# Copy project files first (needed for registration)
+COPY Project/ $PROJECT_ROOT/
+COPY ros2_ws/ $WORKSPACE/ros2_ws/
+
+# Clone and setup O3DE, O3DE Extras
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     \
     # Clone o3de \
@@ -92,10 +96,16 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && git -C $O3DE_EXTRAS_ROOT lfs pull \
     && git -C $O3DE_EXTRAS_ROOT checkout tags/v${O3DE_EXTRAS_VERSION} \
     \
-    # Get the O3DE python and register the gem paths and projects \
+    # Get the O3DE python and register engine \
     && $O3DE_ROOT/python/get_python.sh \
     && $O3DE_ROOT/scripts/o3de.sh register -ep $O3DE_ROOT \
+    \
+    # Register all required gems \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2 \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Sensors \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
+    \
+    # Register the project \
     && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT
 
 # Build the O3DE project
@@ -108,11 +118,10 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && cmake --build $PROJECT_ROOT/build/linux --config profile \
              --target Playground.GameLauncher Editor Playground.Assets AssetProcessor
 
-# Build colcon workspace if it exists
+# Build colcon workspace
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && if [ -d "$WORKSPACE/ros2_ws" ]; then \
-         cd $WORKSPACE/ros2_ws && colcon build --symlink-install; \
-       fi
+    && cd $WORKSPACE/ros2_ws \
+    && colcon build --symlink-install
 
 # ============================================================================
 # Stage 3: Final Runtime Image
@@ -123,7 +132,7 @@ FROM base as runtime
 COPY --from=o3de-builder $WORKSPACE/o3de $WORKSPACE/o3de
 COPY --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
 COPY --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
-COPY --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws 2>/dev/null || true
+COPY --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
 
 # Set environment variables
 ENV O3DE_ROOT=$WORKSPACE/o3de
