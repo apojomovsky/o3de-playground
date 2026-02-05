@@ -1,0 +1,12 @@
+{
+    "project_name": "Playground",
+    "project_id": "{B3D8E6F2-1A4C-4E9B-A8D7-3C5F9E2B7A1D}",
+    "display_name": "ROS2 Playground",
+    "summary": "O3DE + ROS2 Jazzy playground for mobile robotics simulation",
+    "canonical_tags": ["Project"],
+    "user_tags": ["ROS2", "Robotics", "Playground"],
+    "engine": "o3de",
+    "external_subdirectories": ["Gem"],
+    "gem_names": ["ROS2>=3.3.0"],
+    "engine_version": "2510.2"
+}

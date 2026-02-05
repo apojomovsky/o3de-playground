@@ -1,0 +1,11 @@
+{
+    "gem_name": "Playground",
+    "display_name": "Playground",
+    "license": "Apache-2.0",
+    "origin": "O3DE Playground Project",
+    "type": "",
+    "summary": "Internal gem for ROS2 Playground project",
+    "canonical_tags": ["Gem"],
+    "user_tags": ["Playground"],
+    "dependencies": []
+}

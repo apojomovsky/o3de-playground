@@ -1,0 +1,50 @@
+# O3DE Build Artifacts
+Project/build/
+Project/user/
+Project/Cache/
+Project/*.log
+
+# O3DE Editor Cache
+*.assetinfo
+*.azasset
+
+# ROS2 Colcon Workspace
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+ros2_ws/.colcon_*
+
+# Reference Samples (cloned for learning, not part of project)
+reference-samples/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/*.tar
+docker/*.gz
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

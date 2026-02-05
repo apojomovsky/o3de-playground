@@ -1,0 +1,84 @@
+# SLAM Toolbox configuration for O3DE ROS2 Playground
+
+slam_toolbox:
+  ros__parameters:
+    use_sim_time: True
+    
+    # Frames
+    base_frame: base_link
+    map_frame: map
+    odom_frame: odom
+    
+    # Topics
+    scan_topic: /scan
+    
+    # Update rate
+    update_rate: 5.0
+    
+    # SLAM mode: async for real-time mapping
+    mode: mapping
+    
+    # Solver parameters
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+    
+    # Matcher parameters
+    matcher_search_window: 0.1
+    matcher_max_beams_to_match: 300
+    matcher_goodness_threshold: 0.9
+    matcher_confidence_threshold: 0.9
+    matcher_ransac_iterations: 100
+    matcher_ransac_minimum_score: 8.0
+    matcher_ransac_probability: 0.99
+    matcher_ransac_outlier_ratio: 0.666
+    matcher_ransac_outlier_threshold: 2.0
+    matcher_ransac_new_target_search_window: 5.0
+    matcher_ransac_smart_deletion_percentage: 25.0
+    
+    # Loop closure parameters
+    loop_search_maximum_distance: 3.0
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_queue_length: 10
+    loop_match_minimum_response_fine: 0.1
+    loop_match_minimum_response_coarse: 0.9
+    loop_match_minimum_coverage: 0.4
+    loop_query_maximum_variance: 5.0
+    loop_query_maximum_distance: 3.0
+    loop_do_loop_closing: true
+    loop_force_constraint: false
+    loop_thread_priority_type: 1
+    
+    # Scan matcher parameters
+    scan_matcher_maximum_distance: 1.2
+    scan_matcher_maximum_angle: 0.5
+    
+    # Occupancy grid parameters
+    resolution: 0.05
+    minimum_time_interval: 0.5
+    minimum_travel_distance: 0.2
+    minimum_travel_heading: 0.5
+    maximum_laser_range: 12.0
+    
+    # Correlation parameters
+    correlation_search_space_dimension: 0.5
+    correlation_search_space_resolution: 0.05
+    correlation_search_space_smear: 0.1
+    correlation_response_threshold: 0.1
+    
+    # Occupancy grid parameters
+    occupied_space_weight: 100.0
+    occupied_space_derivative_weight: 3.0
+    prior_assist: false
+    prior_weight: 0.5
+    prior_rot_variance: 2.0
+    prior_pos_variance: 5.0
+    translation_delta_weight: 10.0
+    angular_delta_weight: 1.0
+    outlier_outlier_penalty: 500.0
+    outlier_occupy_value: 100
+    outlier_free_value: 25
+    use_response_expansion: true
