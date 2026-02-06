@@ -38,7 +38,7 @@ DOCKERFILE="$PROJECT_ROOT/docker/Dockerfile"
 # Build args
 O3DE_VERSION="${O3DE_VERSION:-2510.2}"
 O3DE_EXTRAS_VERSION="${O3DE_EXTRAS_VERSION:-2510.2}"
-ROS_VERSION="${ROS_VERSION:-jazzy}"
+ROS_DISTRO_BUILD="${ROS_DISTRO_BUILD:-jazzy}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -185,7 +185,7 @@ stage_1_docker_base() {
     if ! docker build \
         --target base \
         --tag "${IMAGE_NAME}:base" \
-        --build-arg ROS_VERSION="$ROS_VERSION" \
+        --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
         --progress=plain \
         -f "$DOCKERFILE" \
@@ -232,7 +232,7 @@ stage_2_docker_o3de() {
     if ! docker build \
         --target o3de-builder \
         --tag "${IMAGE_NAME}:builder" \
-        --build-arg ROS_VERSION="$ROS_VERSION" \
+        --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
         --build-arg O3DE_EXTRAS_VERSION="$O3DE_EXTRAS_VERSION" \
         --progress=plain \
@@ -305,7 +305,7 @@ stage_4_full_build() {
     if ! docker build \
         --target runtime \
         --tag "${IMAGE_NAME}:latest" \
-        --build-arg ROS_VERSION="$ROS_VERSION" \
+        --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
         --build-arg O3DE_EXTRAS_VERSION="$O3DE_EXTRAS_VERSION" \
         --progress=plain \
@@ -369,7 +369,7 @@ main() {
     echo "Project root: $PROJECT_ROOT"
     echo "Log file: $LOG_FILE"
     echo "O3DE Version: $O3DE_VERSION"
-    echo "ROS Version: $ROS_VERSION"
+    echo "ROS Distro: $ROS_DISTRO_BUILD"
     echo ""
     
     # Check basic requirements

@@ -7,7 +7,7 @@
 ARG ROS_VERSION=jazzy
 ARG UBUNTU_VERSION=noble
 
-FROM ros:${ROS_VERSION}-ros-base-${UBUNTU_VERSION} as base
+FROM ros:${ROS_VERSION}-ros-base-${UBUNTU_VERSION} AS base
 
 ENV WORKSPACE=/data/workspace
 ENV LANG=en_US.UTF-8
@@ -39,6 +39,7 @@ RUN apt-get update \
             libxcb-xfixes0-dev \
             libxcb-xinput-dev \
             libxcb-xinput0 \
+            libxcb-keysyms1-dev \
             libpcre2-16-0 \
             ninja-build \
             python3-pip \
@@ -55,14 +56,14 @@ RUN apt-get update \
             ros-${ROS_DISTRO}-cyclonedds \
             ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
             && rm -rf /var/lib/apt/lists/* \
-            && pip install python-statemachine
+            && pip install --break-system-packages python-statemachine
 
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 # ============================================================================
 # Stage 2: O3DE Build
 # ============================================================================
-FROM base as o3de-builder
+FROM base AS o3de-builder
 
 # O3DE Variables
 ARG O3DE_VERSION=2510.2
@@ -77,44 +78,44 @@ ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
 # Project Variables
 ENV PROJECT_ROOT=$WORKSPACE/Project
 
-# Copy project files first (needed for registration)
-COPY Project/ $PROJECT_ROOT/
-COPY ros2_ws/ $WORKSPACE/ros2_ws/
-
-# Clone and setup O3DE, O3DE Extras
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    \
-    # Clone o3de \
-    && git clone --single-branch -b main $O3DE_REPO $O3DE_ROOT \
+# Clone O3DE engine and extras (expensive, cache-friendly - no project files needed)
+RUN git clone --single-branch -b main $O3DE_REPO $O3DE_ROOT \
     && git -C $O3DE_ROOT lfs install \
     && git -C $O3DE_ROOT lfs pull \
-    && git -C $O3DE_ROOT checkout tags/v${O3DE_VERSION} \
-    \
-    # Clone o3de-extras \
+    && git -C $O3DE_ROOT checkout tags/${O3DE_VERSION} \
+    && rm -rf $O3DE_ROOT/Gems/WhiteBox/* \
+    && echo "" > $O3DE_ROOT/Gems/WhiteBox/CMakeLists.txt \
     && git clone --single-branch -b main $O3DE_EXTRAS_REPO $O3DE_EXTRAS_ROOT \
     && git -C $O3DE_EXTRAS_ROOT lfs install \
     && git -C $O3DE_EXTRAS_ROOT lfs pull \
-    && git -C $O3DE_EXTRAS_ROOT checkout tags/v${O3DE_EXTRAS_VERSION} \
-    \
-    # Get the O3DE python and register engine \
+    && git -C $O3DE_EXTRAS_ROOT checkout tags/${O3DE_EXTRAS_VERSION}
+
+# Register engine and gems (depends on clone layer only)
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/python/get_python.sh \
     && $O3DE_ROOT/scripts/o3de.sh register -ep $O3DE_ROOT \
-    \
-    # Register all required gems \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/LevelGeoreferencing \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2 \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Sensors \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
-    \
-    # Register the project \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers
+
+# Copy project files and register (changes here don't invalidate clone/register layers)
+COPY Project/ $PROJECT_ROOT/
+COPY ros2_ws/ $WORKSPACE/ros2_ws/
+
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT
 
-# Build the O3DE project
+# Configure O3DE project
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && cmake -B $PROJECT_ROOT/build/linux -G "Ninja Multi-Config" \
                             -S $PROJECT_ROOT \
                             -DLY_DISABLE_TEST_MODULES=ON \
                             -DLY_STRIP_DEBUG_SYMBOLS=ON \
-                            -DAZ_USE_PHYSX5=ON \
+                            -DAZ_USE_PHYSX5=ON
+
+# Build O3DE project (separate layer - cmake configure cached above)
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && cmake --build $PROJECT_ROOT/build/linux --config profile \
              --target Playground.GameLauncher Editor Playground.Assets AssetProcessor
 
@@ -126,7 +127,7 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
 # ============================================================================
 # Stage 3: Final Runtime Image
 # ============================================================================
-FROM base as runtime
+FROM base AS runtime
 
 # Copy built artifacts from builder
 COPY --from=o3de-builder $WORKSPACE/o3de $WORKSPACE/o3de
