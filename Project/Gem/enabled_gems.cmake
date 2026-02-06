@@ -1,12 +1,28 @@
 
 set(ENABLED_GEMS
+    ROS2
+    ROS2Sensors
+    ROS2Controllers
     Playground
     Atom
+    AudioSystem
     CameraFramework
     DebugDraw
+    DiffuseProbeGrid
+    EditorPythonBindings
+    EMotionFX
+    GameState
+    ImGui
+    LandscapeCanvas
+    LyShine
+    MiniAudio
     PhysX
     PrimitiveAssets
     PrefabBuilder
-    ROS2
-    ImGui
+    SaveData
+    ScriptCanvasPhysics
+    ScriptEvents
+    StartingPointInput
+    TextureAtlas
+    RemoteTools
 )

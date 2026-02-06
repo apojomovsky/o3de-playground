@@ -22,6 +22,21 @@ if(NOT PAL_TRAIT_PLAYGROUND_SUPPORTED)
     return()
 endif()
 
+if(NOT COMMAND target_depends_on_ros2_packages)
+    function(target_depends_on_ros2_package TARGET_NAME)
+        list(GET ARGN 0 _package)
+        find_package(${ARGN})
+        if(${${_package}_FOUND})
+            target_link_libraries(${TARGET_NAME} PUBLIC ${${_package}_TARGETS})
+        endif()
+    endfunction()
+    function(target_depends_on_ros2_packages TARGET_NAME)
+        foreach(_package IN LISTS ARGN)
+            target_depends_on_ros2_package(${TARGET_NAME} ${_package} REQUIRED)
+        endforeach()
+    endfunction()
+endif()
+
 # We are on a supported platform, so add the Playground target
 # Note: We include the common files and the platform specific files which are set in playground_files.cmake and
 # in ${pal_dir}/playground_${PAL_PLATFORM_NAME_LOWERCASE}_files.cmake
