@@ -57,6 +57,7 @@ run_nvidia() {
     fi
     xhost +local:docker 2>/dev/null || true
     docker run -it --rm \
+        --init \
         --runtime=nvidia --gpus all \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -e DISPLAY="$DISPLAY" \
@@ -65,11 +66,12 @@ run_nvidia() {
         "${audio_opts[@]}" \
         --name o3de-playground-run \
         "${IMAGE_NAME}:${TAG}" \
-        $cmd
+        bash -lc "$cmd"
 }
 
 run_amd() {
     local cmd="$1"
+    local vk_icd="/usr/share/vulkan/icd.d/radeon_icd.json"
     local audio_opts=()
     if [[ "$AUDIO_MODE" == "host" ]]; then
         if [[ -e /dev/snd ]]; then
@@ -83,6 +85,7 @@ run_amd() {
     fi
     xhost +local:docker 2>/dev/null || true
     docker run -it --rm \
+        --init \
         --device=/dev/kfd --device=/dev/dri \
         --group-add video \
         --group-add render \
@@ -91,17 +94,18 @@ run_amd() {
         -e DISPLAY="$DISPLAY" \
         -e XDG_RUNTIME_DIR=/tmp/runtime-root \
         -e QT_QPA_PLATFORM=xcb \
-        -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
+        -e VK_ICD_FILENAMES="$vk_icd" \
         "${audio_opts[@]}" \
         --name o3de-playground-run \
         "${IMAGE_NAME}:${TAG}" \
-        $cmd
+        bash -lc "$cmd"
 }
 
 TAG="latest"
 GPU=""
 COMMAND="shell"
 AUDIO_MODE="dummy"
+O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -149,16 +153,16 @@ fi
 
 case "$COMMAND" in
     shell)
-        CMD="/bin/bash"
+        CMD="exec /bin/bash"
         ;;
     editor)
-        CMD="/data/workspace/Project/build/linux/bin/profile/Editor"
+        CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project"
         ;;
     game)
-        CMD="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher"
+        CMD="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher --project-path /data/workspace/Project"
         ;;
     nav)
-        CMD="bash -c 'source /opt/ros/jazzy/setup.bash && source /data/workspace/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py'"
+        CMD="source /opt/ros/jazzy/setup.bash && source /data/workspace/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
         ;;
 esac
 
@@ -175,6 +179,6 @@ case "$GPU" in
         ;;
     none)
         echo -e "${RED}No GPU detected. Running without GPU support (will likely fail for Editor).${NC}"
-        docker run -it --rm "${IMAGE_NAME}:${TAG}" $CMD
+        docker run -it --rm --init "${IMAGE_NAME}:${TAG}" bash -lc "$CMD"
         ;;
 esac

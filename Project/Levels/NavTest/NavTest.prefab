@@ -587,6 +587,13 @@
                         }
                     }
                 },
+                "Component_[11000000000000001010]": {
+                    "$type": "GenericComponentWrapper",
+                    "Id": 11000000000000001010,
+                    "m_template": {
+                        "$type": "FlyCameraInputComponent"
+                    }
+                },
                 "Component_[11000000000000001003]": {
                     "$type": "EditorInspectorComponent",
                     "Id": 11000000000000001003

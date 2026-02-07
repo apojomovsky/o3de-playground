@@ -20,13 +20,15 @@ This Docker setup provides a complete containerized environment for running O3DE
 
 ### Build Command
 
-From the `docker/` directory, run:
+From the repository root, run:
 
 ```bash
+./scripts/cache-o3de-deb.sh --version 2510.2
+
 docker build -t o3de-playground:latest \
   --build-arg O3DE_VERSION=2510.2 \
   --build-arg O3DE_EXTRAS_VERSION=2510.2 \
-  -f Dockerfile .
+  -f docker/Dockerfile .
 ```
 
 ### Build Arguments
@@ -37,10 +39,17 @@ docker build -t o3de-playground:latest \
 | `UBUNTU_VERSION` | `noble` | Ubuntu version (24.04 = noble) |
 | `O3DE_VERSION` | `2510.2` | O3DE engine version tag |
 | `O3DE_EXTRAS_VERSION` | `2510.2` | O3DE extras (ROS2 Gem) version tag |
+| `O3DE_DEB_SHA256` | empty | Optional SHA256 to verify downloaded/cached O3DE .deb |
 
 ### Build Time
 
-The build process typically takes **2-4 hours** depending on hardware and network connectivity.
+The build process typically takes **1-3 hours** depending on hardware and network connectivity.
+Installing O3DE from a cached host-side `.deb` removes most engine download overhead.
+
+### Host Cache Behavior
+
+- If `docker/cache/o3de_<version>.deb` exists, Docker installs that package first.
+- Docker verifies the package using `https://o3debinaries.org/main/Latest/Linux/o3de_<version>.deb.sha256`.
 
 ## Running the Docker Container
 
@@ -67,7 +76,7 @@ docker run --runtime=nvidia --gpus all \
 **Inside the container**, launch the O3DE Editor:
 
 ```bash
-/data/workspace/Project/build/linux/bin/profile/Editor
+/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
 ```
 
 Or launch the game:
@@ -89,7 +98,7 @@ docker run --device=/dev/kfd --device=/dev/dri \
   -e DISPLAY=$DISPLAY \
   -e XDG_RUNTIME_DIR=/tmp/runtime-root \
   -e QT_QPA_PLATFORM=xcb \
-  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \
   --name o3de-playground \
   o3de-playground:latest
 ```
@@ -97,7 +106,7 @@ docker run --device=/dev/kfd --device=/dev/dri \
 **Inside the container**, launch the O3DE Editor:
 
 ```bash
-/data/workspace/Project/build/linux/bin/profile/Editor
+/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
 ```
 
 **Headless Fallback**: If display issues occur, use headless mode:
@@ -108,7 +117,7 @@ docker run --device=/dev/kfd --device=/dev/dri \
   --group-add render \
   --security-opt seccomp=unconfined \
   -e XDG_RUNTIME_DIR=/tmp/runtime-root \
-  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \
   --name o3de-playground \
   o3de-playground:latest \
   /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
@@ -282,7 +291,7 @@ To modify the build, edit the Dockerfile and rebuild:
 ```bash
 docker build -t o3de-playground:custom \
   --build-arg O3DE_VERSION=2510.1 \
-  -f Dockerfile .
+  -f docker/Dockerfile .
 ```
 
 ### Multi-Stage Build Optimization

@@ -28,9 +28,12 @@ This project provides a ready-to-use environment for:
 ### Option 1: Docker (Recommended)
 
 ```bash
-# Build the Docker image (2-4 hours first time)
-cd docker
-docker build -t o3de-playground:latest .
+# Recommended: use build script family (auto-caches O3DE .deb)
+./scripts/build.sh 4
+
+# Or if you still want direct Docker invocation:
+./scripts/cache-o3de-deb.sh --version 2510.2
+docker build -t o3de-playground:latest -f docker/Dockerfile .
 
 # Run with NVIDIA GPU (X11)
 xhost +local:docker
@@ -48,11 +51,11 @@ docker run --device=/dev/kfd --device=/dev/dri \
   -e DISPLAY=$DISPLAY \
   -e XDG_RUNTIME_DIR=/tmp/runtime-root \
   -e QT_QPA_PLATFORM=xcb \
-  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \
   o3de-playground:latest
 
 # Inside container: Launch Editor
-/data/workspace/Project/build/linux/bin/profile/Editor
+/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
 
 # In another terminal: Launch Nav2
 docker exec -it <container_id> bash
@@ -105,7 +108,10 @@ o3de-playground/
 │       └── playground_nav/     # Nav2 launch package
 ├── docker/                     # Docker configuration
 │   ├── Dockerfile              # Multi-stage build
+│   ├── cache/                  # Optional host-side cached O3DE .deb files
 │   └── README.md               # Docker-specific docs
+├── scripts/
+│   └── cache-o3de-deb.sh       # Download O3DE .deb into docker/cache/
 ├── REQUIREMENTS.md             # Detailed requirements document
 └── README.md                   # This file
 ```

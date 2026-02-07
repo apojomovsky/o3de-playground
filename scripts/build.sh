@@ -21,6 +21,9 @@
 #   ./scripts/build.sh all    # Build everything
 #   ./scripts/build.sh        # Same as 'all'
 #
+# Behavior:
+#   Stage 2+ auto-prepares host-side O3DE .deb cache via scripts/cache-o3de-deb.sh
+#
 
 set -euo pipefail
 
@@ -39,6 +42,10 @@ DOCKERFILE="$PROJECT_ROOT/docker/Dockerfile"
 O3DE_VERSION="${O3DE_VERSION:-2510.2}"
 O3DE_EXTRAS_VERSION="${O3DE_EXTRAS_VERSION:-2510.2}"
 ROS_DISTRO_BUILD="${ROS_DISTRO_BUILD:-jazzy}"
+O3DE_DEB_SHA256="${O3DE_DEB_SHA256:-}"
+O3DE_CACHE_DEB="${O3DE_CACHE_DEB:-1}"
+O3DE_CACHE_FORCE="${O3DE_CACHE_FORCE:-0}"
+O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -84,6 +91,46 @@ check_command() {
     if ! command -v "$1" &> /dev/null; then
         die "Required command not found: $1"
     fi
+}
+
+normalize_o3de_install_version() {
+    if [[ -n "$O3DE_INSTALL_VERSION" ]]; then
+        return
+    fi
+
+    if [[ "$O3DE_VERSION" =~ ^[0-9]{4}\.[0-9]+$ ]]; then
+        local major_minor="${O3DE_VERSION%%.*}"
+        local patch="${O3DE_VERSION##*.}"
+        O3DE_INSTALL_VERSION="${major_minor:0:2}.${major_minor:2:2}.${patch}"
+    else
+        O3DE_INSTALL_VERSION="$O3DE_VERSION"
+    fi
+}
+
+ensure_o3de_deb_cache() {
+    if [[ "$O3DE_CACHE_DEB" != "1" ]]; then
+        log INFO "Skipping O3DE .deb cache preparation (O3DE_CACHE_DEB=$O3DE_CACHE_DEB)"
+        return
+    fi
+
+    local cache_script="$SCRIPT_DIR/cache-o3de-deb.sh"
+
+    if [[ ! -x "$cache_script" ]]; then
+        die "Missing executable cache helper: $cache_script"
+    fi
+
+    log INFO "Preparing host-side O3DE .deb cache for version $O3DE_VERSION..."
+    local cache_args=(--version "$O3DE_VERSION")
+
+    if [[ "$O3DE_CACHE_FORCE" == "1" ]]; then
+        cache_args+=(--force)
+    fi
+
+    if ! "$cache_script" "${cache_args[@]}" 2>&1 | tee -a "$LOG_FILE"; then
+        die "Failed to prepare O3DE .deb cache"
+    fi
+
+    log OK "O3DE .deb cache is ready"
 }
 
 stage_header() {
@@ -213,8 +260,7 @@ stage_1_docker_base() {
 # =============================================================================
 # Extends base image with O3DE engine and gems.
 # This catches issues with:
-#   - O3DE repository cloning
-#   - Git LFS
+#   - O3DE .deb installation
 #   - O3DE Python setup
 #   - Gem registration
 # =============================================================================
@@ -223,10 +269,12 @@ stage_2_docker_o3de() {
     stage_header 2 "Docker + O3DE Installation"
     
     check_command docker
+
+    ensure_o3de_deb_cache
     
     log INFO "Building O3DE builder image..."
-    log INFO "This clones O3DE ($O3DE_VERSION) and registers gems"
-    log INFO "Expected time: 30-60 minutes (depends on network)"
+    log INFO "This installs O3DE $O3DE_VERSION (.deb) and registers gems"
+    log INFO "Expected time: 10-20 minutes (depends on network/cache)"
     
     # Build the 'o3de-builder' target
     if ! docker build \
@@ -234,7 +282,9 @@ stage_2_docker_o3de() {
         --tag "${IMAGE_NAME}:builder" \
         --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
+        --build-arg O3DE_INSTALL_VERSION="$O3DE_INSTALL_VERSION" \
         --build-arg O3DE_EXTRAS_VERSION="$O3DE_EXTRAS_VERSION" \
+        --build-arg O3DE_DEB_SHA256="$O3DE_DEB_SHA256" \
         --progress=plain \
         -f "$DOCKERFILE" \
         "$PROJECT_ROOT" 2>&1 | tee -a "$LOG_FILE"; then
@@ -244,7 +294,7 @@ stage_2_docker_o3de() {
     # Verify O3DE CLI works
     log INFO "Verifying O3DE installation..."
     if ! docker run --rm "${IMAGE_NAME}:builder" \
-        /data/workspace/o3de/scripts/o3de.sh --help &>> "$LOG_FILE"; then
+        bash -lc '/opt/O3DE/'"$O3DE_INSTALL_VERSION"'/scripts/o3de.sh --help' &>> "$LOG_FILE"; then
         die "O3DE CLI not working"
     fi
     log OK "O3DE CLI responds correctly"
@@ -272,7 +322,7 @@ stage_3_project_registration() {
     # This is checked during the o3de-builder stage
     # We verify by checking if the project appears in the registry
     if ! docker run --rm "${IMAGE_NAME}:builder" \
-        /data/workspace/o3de/scripts/o3de.sh get-registered --projects 2>&1 | \
+        bash -lc '/opt/O3DE/'"$O3DE_INSTALL_VERSION"'/scripts/o3de.sh get-registered --projects' 2>&1 | \
         tee -a "$LOG_FILE" | grep -q "Project"; then
         log WARN "Project may not be registered (this might be OK if path differs)"
     else
@@ -307,7 +357,9 @@ stage_4_full_build() {
         --tag "${IMAGE_NAME}:latest" \
         --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
+        --build-arg O3DE_INSTALL_VERSION="$O3DE_INSTALL_VERSION" \
         --build-arg O3DE_EXTRAS_VERSION="$O3DE_EXTRAS_VERSION" \
+        --build-arg O3DE_DEB_SHA256="$O3DE_DEB_SHA256" \
         --progress=plain \
         -f "$DOCKERFILE" \
         "$PROJECT_ROOT" 2>&1 | tee -a "$LOG_FILE"; then
@@ -323,10 +375,10 @@ stage_4_full_build() {
     # Check Editor binary exists
     log INFO "Checking Editor binary..."
     if docker run --rm "${IMAGE_NAME}:latest" \
-        test -f /data/workspace/Project/build/linux/bin/profile/Editor; then
+        test -f /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor; then
         log OK "Editor binary exists"
     else
-        log WARN "Editor binary not found (might have different path)"
+        log WARN "Editor binary not found in expected O3DE install path"
     fi
     
     stage_complete 4
@@ -346,11 +398,14 @@ stage_4_full_build() {
     echo "    ${IMAGE_NAME}:latest"
     echo ""
     echo "  # AMD GPU (XWayland):"
-    echo "  docker run --device=/dev/kfd --device=/dev/dri \\"
-    echo "    --group-add video \\"
-    echo "    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \\"
-    echo "    -e DISPLAY=\$DISPLAY \\"
-    echo "    -e QT_QPA_PLATFORM=xcb \\"
+    echo "  docker run --device=/dev/kfd --device=/dev/dri \\" 
+    echo "    --group-add video \\" 
+    echo "    --group-add render \\" 
+    echo "    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \\" 
+    echo "    -e DISPLAY=\$DISPLAY \\" 
+    echo "    -e XDG_RUNTIME_DIR=/tmp/runtime-root \\" 
+    echo "    -e QT_QPA_PLATFORM=xcb \\" 
+    echo "    -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \\" 
     echo "    ${IMAGE_NAME}:latest"
     echo ""
 }
@@ -361,6 +416,8 @@ stage_4_full_build() {
 
 main() {
     local stage="${1:-all}"
+
+    normalize_o3de_install_version
     
     echo ""
     echo "O3DE ROS2 Playground - Build Script"
@@ -369,7 +426,9 @@ main() {
     echo "Project root: $PROJECT_ROOT"
     echo "Log file: $LOG_FILE"
     echo "O3DE Version: $O3DE_VERSION"
+    echo "O3DE Install Version: $O3DE_INSTALL_VERSION"
     echo "ROS Distro: $ROS_DISTRO_BUILD"
+    echo "Auto cache .deb: $O3DE_CACHE_DEB"
     echo ""
     
     # Check basic requirements
