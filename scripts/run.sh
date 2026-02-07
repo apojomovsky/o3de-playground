@@ -85,10 +85,13 @@ run_amd() {
     docker run -it --rm \
         --device=/dev/kfd --device=/dev/dri \
         --group-add video \
+        --group-add render \
         --security-opt seccomp=unconfined \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -e DISPLAY="$DISPLAY" \
+        -e XDG_RUNTIME_DIR=/tmp/runtime-root \
         -e QT_QPA_PLATFORM=xcb \
+        -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
         "${audio_opts[@]}" \
         --name o3de-playground-run \
         "${IMAGE_NAME}:${TAG}" \

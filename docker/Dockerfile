@@ -36,14 +36,17 @@ RUN apt-get update \
             libxcb-xkb-dev \
             libxkbcommon-x11-dev \
             libxkbcommon-dev \
+            libvulkan1 \
             libxcb-xfixes0-dev \
             libxcb-xinput-dev \
             libxcb-xinput0 \
             libxcb-keysyms1-dev \
+            mesa-vulkan-drivers \
             libpcre2-16-0 \
             ninja-build \
             python3-pip \
             software-properties-common \
+            vulkan-tools \
             ros-${ROS_DISTRO}-ackermann-msgs \
             ros-${ROS_DISTRO}-control-toolbox \
             ros-${ROS_DISTRO}-gazebo-msgs \
@@ -141,8 +144,6 @@ ENV O3DE_ROOT=$WORKSPACE/o3de
 ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
 ENV PROJECT_ROOT=$WORKSPACE/Project
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 # Setup ROS2 environment
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \

@@ -42,10 +42,13 @@ docker run --runtime=nvidia --gpus all \
 # Run with AMD GPU (Wayland host using XWayland)
 docker run --device=/dev/kfd --device=/dev/dri \
   --group-add video \
+  --group-add render \
   --security-opt seccomp=unconfined \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -e DISPLAY=$DISPLAY \
+  -e XDG_RUNTIME_DIR=/tmp/runtime-root \
   -e QT_QPA_PLATFORM=xcb \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
   o3de-playground:latest
 
 # Inside container: Launch Editor
@@ -199,6 +202,9 @@ nvidia-smi
 
 # Check container toolkit
 docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+
+# AMD: Verify Vulkan device selection
+vulkaninfo --summary
 ```
 
 ### O3DE Build Errors

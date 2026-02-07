@@ -83,10 +83,13 @@ Run the container with AMD GPU support using XWayland for display:
 ```bash
 docker run --device=/dev/kfd --device=/dev/dri \
   --group-add video \
+  --group-add render \
   --security-opt seccomp=unconfined \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -e DISPLAY=$DISPLAY \
+  -e XDG_RUNTIME_DIR=/tmp/runtime-root \
   -e QT_QPA_PLATFORM=xcb \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
   --name o3de-playground \
   o3de-playground:latest
 ```
@@ -102,7 +105,10 @@ docker run --device=/dev/kfd --device=/dev/dri \
 ```bash
 docker run --device=/dev/kfd --device=/dev/dri \
   --group-add video \
+  --group-add render \
   --security-opt seccomp=unconfined \
+  -e XDG_RUNTIME_DIR=/tmp/runtime-root \
+  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json \
   --name o3de-playground \
   o3de-playground:latest \
   /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
@@ -150,8 +156,6 @@ O3DE_ROOT=/data/workspace/o3de
 O3DE_EXTRAS_ROOT=/data/workspace/o3de-extras
 PROJECT_ROOT=/data/workspace/Project
 RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-NVIDIA_VISIBLE_DEVICES=all
-NVIDIA_DRIVER_CAPABILITIES=all
 ```
 
 ### ROS2 Setup
@@ -231,8 +235,8 @@ nvidia-smi
 
 **AMD:**
 ```bash
-# Inside container, verify GPU access
-rocm-smi
+# Inside container, verify Vulkan detects AMD (not llvmpipe)
+vulkaninfo --summary
 ```
 
 ### Out of Memory
