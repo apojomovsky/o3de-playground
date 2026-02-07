@@ -134,6 +134,7 @@ COPY --from=o3de-builder $WORKSPACE/o3de $WORKSPACE/o3de
 COPY --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
 COPY --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
 COPY --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
+COPY --from=o3de-builder /root/.o3de /root/.o3de
 
 # Set environment variables
 ENV O3DE_ROOT=$WORKSPACE/o3de
@@ -145,7 +146,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 # Setup ROS2 environment
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
-    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /etc/bash.bashrc
+    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /etc/bash.bashrc \
+    && printf "pcm.!default {\n    type null\n}\nctl.!default {\n    type null\n}\n" > /etc/asound.conf
 
 # Create entrypoint script
 RUN echo '#!/bin/bash' > /entrypoint.sh \

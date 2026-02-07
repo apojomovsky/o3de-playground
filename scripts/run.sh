@@ -22,6 +22,7 @@ Commands:
 Options:
   --nvidia  Use NVIDIA GPU (default if nvidia-smi found)
   --amd     Use AMD GPU
+  --audio   Enable host audio passthrough (/dev/snd)
   --tag     Image tag (default: latest)
 
 Examples:
@@ -43,6 +44,17 @@ detect_gpu() {
 
 run_nvidia() {
     local cmd="$1"
+    local audio_opts=()
+    if [[ "$AUDIO_MODE" == "host" ]]; then
+        if [[ -e /dev/snd ]]; then
+            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
+        else
+            echo -e "${YELLOW}--audio requested but /dev/snd not found; using dummy audio backend.${NC}"
+            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+        fi
+    else
+        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+    fi
     xhost +local:docker 2>/dev/null || true
     docker run -it --rm \
         --runtime=nvidia --gpus all \
@@ -50,6 +62,7 @@ run_nvidia() {
         -e DISPLAY="$DISPLAY" \
         -e NVIDIA_VISIBLE_DEVICES=all \
         -e NVIDIA_DRIVER_CAPABILITIES=all \
+        "${audio_opts[@]}" \
         --name o3de-playground-run \
         "${IMAGE_NAME}:${TAG}" \
         $cmd
@@ -57,6 +70,17 @@ run_nvidia() {
 
 run_amd() {
     local cmd="$1"
+    local audio_opts=()
+    if [[ "$AUDIO_MODE" == "host" ]]; then
+        if [[ -e /dev/snd ]]; then
+            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
+        else
+            echo -e "${YELLOW}--audio requested but /dev/snd not found; using dummy audio backend.${NC}"
+            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+        fi
+    else
+        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+    fi
     xhost +local:docker 2>/dev/null || true
     docker run -it --rm \
         --device=/dev/kfd --device=/dev/dri \
@@ -65,6 +89,7 @@ run_amd() {
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -e DISPLAY="$DISPLAY" \
         -e QT_QPA_PLATFORM=xcb \
+        "${audio_opts[@]}" \
         --name o3de-playground-run \
         "${IMAGE_NAME}:${TAG}" \
         $cmd
@@ -73,6 +98,7 @@ run_amd() {
 TAG="latest"
 GPU=""
 COMMAND="shell"
+AUDIO_MODE="dummy"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -86,6 +112,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --amd)
             GPU="amd"
+            shift
+            ;;
+        --audio)
+            AUDIO_MODE="host"
             shift
             ;;
         --tag)
@@ -131,6 +161,7 @@ esac
 
 echo -e "${GREEN}Running: $CMD${NC}"
 echo "GPU mode: $GPU"
+echo "Audio mode: $AUDIO_MODE"
 
 case "$GPU" in
     nvidia)

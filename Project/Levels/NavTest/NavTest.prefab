@@ -66,7 +66,8 @@
                     "Child Entity Order": [
                         "Entity_[2100000000002]",
                         "Entity_[2100000000003]",
-                        "Entity_[2100000000004]"
+                        "Entity_[2100000000004]",
+                        "Entity_[2100000000010]"
                     ]
                 },
                 "Component_[11000000000000000103]": {
@@ -555,13 +556,73 @@
                     "Id": 11000000000000000908
                 }
             }
+        },
+        "Entity_[2100000000010]": {
+            "Id": "Entity_[2100000000010]",
+            "Name": "Camera",
+            "Components": {
+                "Component_[11000000000000001001]": {
+                    "$type": "{27F1E1A1-8D9D-4C3B-BD3A-AFB9762449C0} TransformComponent",
+                    "Id": 11000000000000001001,
+                    "Parent Entity": "Entity_[2100000000001]",
+                    "Transform Data": {
+                        "Translate": [
+                            0.0,
+                            -12.0,
+                            8.0
+                        ],
+                        "Rotate": [
+                            -30.0,
+                            0.0,
+                            0.0
+                        ]
+                    }
+                },
+                "Component_[11000000000000001002]": {
+                    "$type": "{CA11DA46-29FF-4083-B5F6-E02C3A8C3A3D} EditorCameraComponent",
+                    "Id": 11000000000000001002,
+                    "Controller": {
+                        "Configuration": {
+                            "Field of View": 60.0
+                        }
+                    }
+                },
+                "Component_[11000000000000001003]": {
+                    "$type": "EditorInspectorComponent",
+                    "Id": 11000000000000001003
+                },
+                "Component_[11000000000000001004]": {
+                    "$type": "EditorEntityIconComponent",
+                    "Id": 11000000000000001004
+                },
+                "Component_[11000000000000001005]": {
+                    "$type": "EditorDisabledCompositionComponent",
+                    "Id": 11000000000000001005
+                },
+                "Component_[11000000000000001006]": {
+                    "$type": "EditorOnlyEntityComponent",
+                    "Id": 11000000000000001006
+                },
+                "Component_[11000000000000001007]": {
+                    "$type": "EditorLockComponent",
+                    "Id": 11000000000000001007
+                },
+                "Component_[11000000000000001008]": {
+                    "$type": "EditorVisibilityComponent",
+                    "Id": 11000000000000001008
+                },
+                "Component_[11000000000000001009]": {
+                    "$type": "EditorPendingCompositionComponent",
+                    "Id": 11000000000000001009
+                }
+            }
         }
     },
     "Instances": {
         "Instance_[4100000000001]": {
             "InstanceAlias": "SpawnPoints_instance",
             "Patches": [],
-            "Source": "assets/spawnpoints/spawnpoints.spawnable"
+            "Source": "Assets/SpawnPoints/SpawnPoints.prefab"
         }
     }
 }

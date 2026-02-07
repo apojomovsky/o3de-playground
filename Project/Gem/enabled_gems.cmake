@@ -16,7 +16,7 @@ set(ENABLED_GEMS
     LandscapeCanvas
     LyShine
     MiniAudio
-    PhysX
+    PhysX5
     PrimitiveAssets
     PrefabBuilder
     SaveData

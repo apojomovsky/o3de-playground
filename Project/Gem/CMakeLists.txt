@@ -58,7 +58,7 @@ ly_add_target(
             Gem::ROS2.Static
         PRIVATE
             AZ::AzFramework
-            Gem::PhysX.Static
+            Gem::PhysX5.Static
 )
 
 target_depends_on_ros2_packages(Playground.Static std_srvs nav_msgs sensor_msgs)
