@@ -7,6 +7,7 @@ IMAGE_NAME="o3de-playground"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 usage() {
@@ -24,6 +25,7 @@ Options:
   --amd     Use AMD GPU
   --audio   Enable host audio passthrough (/dev/snd)
   --tag     Image tag (default: latest)
+  --no-mounts  Disable host project bind mounts
 
 Examples:
   ./scripts/run.sh shell --nvidia
@@ -59,6 +61,7 @@ run_nvidia() {
     docker run -it --rm \
         --init \
         --runtime=nvidia --gpus all \
+        "${MOUNT_OPTS[@]}" \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -e DISPLAY="$DISPLAY" \
         -e NVIDIA_VISIBLE_DEVICES=all \
@@ -87,6 +90,7 @@ run_amd() {
     docker run -it --rm \
         --init \
         --device=/dev/kfd --device=/dev/dri \
+        "${MOUNT_OPTS[@]}" \
         --group-add video \
         --group-add render \
         --security-opt seccomp=unconfined \
@@ -106,6 +110,33 @@ GPU=""
 COMMAND="shell"
 AUDIO_MODE="dummy"
 O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
+USE_MOUNTS=1
+MOUNT_OPTS=()
+
+build_mount_opts() {
+    if [[ "$USE_MOUNTS" != "1" ]]; then
+        return
+    fi
+
+    local host_project="$PROJECT_ROOT/Project"
+    local host_ros2="$PROJECT_ROOT/ros2_ws"
+
+    if [[ -d "$host_project/Levels" ]]; then
+        MOUNT_OPTS+=(-v "$host_project/Levels:/data/workspace/Project/Levels:rw")
+    fi
+    if [[ -d "$host_project/Registry" ]]; then
+        MOUNT_OPTS+=(-v "$host_project/Registry:/data/workspace/Project/Registry:rw")
+    fi
+    if [[ -d "$host_project/Assets" ]]; then
+        MOUNT_OPTS+=(-v "$host_project/Assets:/data/workspace/Project/Assets:rw")
+    fi
+    if [[ -d "$host_project/Scripts" ]]; then
+        MOUNT_OPTS+=(-v "$host_project/Scripts:/data/workspace/Project/Scripts:rw")
+    fi
+    if [[ -d "$host_ros2/src" ]]; then
+        MOUNT_OPTS+=(-v "$host_ros2/src:/data/workspace/ros2_ws/src:rw")
+    fi
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -129,6 +160,10 @@ while [[ $# -gt 0 ]]; do
             TAG="$2"
             shift 2
             ;;
+        --no-mounts)
+            USE_MOUNTS=0
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -151,6 +186,8 @@ if ! docker image inspect "${IMAGE_NAME}:${TAG}" &> /dev/null; then
     exit 1
 fi
 
+build_mount_opts
+
 case "$COMMAND" in
     shell)
         CMD="exec /bin/bash"
@@ -159,7 +196,7 @@ case "$COMMAND" in
         CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project"
         ;;
     game)
-        CMD="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher --project-path /data/workspace/Project"
+        CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch --project-path /data/workspace/Project && /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher --project-path /data/workspace/Project"
         ;;
     nav)
         CMD="source /opt/ros/jazzy/setup.bash && source /data/workspace/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
@@ -169,6 +206,11 @@ esac
 echo -e "${GREEN}Running: $CMD${NC}"
 echo "GPU mode: $GPU"
 echo "Audio mode: $AUDIO_MODE"
+if [[ "$USE_MOUNTS" == "1" ]]; then
+    echo "Host mounts: enabled"
+else
+    echo "Host mounts: disabled"
+fi
 
 case "$GPU" in
     nvidia)
@@ -179,6 +221,6 @@ case "$GPU" in
         ;;
     none)
         echo -e "${RED}No GPU detected. Running without GPU support (will likely fail for Editor).${NC}"
-        docker run -it --rm --init "${IMAGE_NAME}:${TAG}" bash -lc "$CMD"
+        docker run -it --rm --init "${MOUNT_OPTS[@]}" "${IMAGE_NAME}:${TAG}" bash -lc "$CMD"
         ;;
 esac

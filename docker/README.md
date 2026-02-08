@@ -136,6 +136,21 @@ docker run -it \
   /bin/bash
 ```
 
+### Fast No-Rebuild Loop
+
+Use `scripts/run.sh` for day-to-day level/asset iteration. It bind-mounts host project content and runs
+`AssetProcessorBatch` before `GameLauncher`, so you do not need to rebuild the Docker image for content changes.
+
+```bash
+./scripts/run.sh game --amd
+```
+
+Disable bind mounts (fallback behavior):
+
+```bash
+./scripts/run.sh game --amd --no-mounts
+```
+
 ## Container Environment
 
 ### Workspace Structure

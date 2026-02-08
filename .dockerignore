@@ -1,0 +1,29 @@
+# Git / editor
+.git/
+.github/
+.idea/
+.vscode/
+
+# Logs and local artifacts
+logs/
+*.log
+
+# Large local docs not needed in image
+*.pdf
+o3de-ros2-deep-research.md
+
+# Build outputs (host-side)
+Project/build/
+Project/Cache/
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Reference and scratch data
+reference-samples/
+
+# Keep only required docker inputs
+docker/*.md
+!docker/Dockerfile
+!docker/cache/
+!docker/cache/**

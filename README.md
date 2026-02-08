@@ -61,6 +61,10 @@ docker run --device=/dev/kfd --device=/dev/dri \
 docker exec -it <container_id> bash
 source /data/workspace/ros2_ws/install/setup.bash
 ros2 launch playground_nav navigation.launch.py
+
+# Fast iteration (no image rebuild for level/asset edits)
+# run.sh now bind-mounts host Project/{Levels,Registry,Assets,Scripts} by default
+./scripts/run.sh game --amd
 ```
 
 ### Option 2: Native Build
