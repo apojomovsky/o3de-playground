@@ -77,7 +77,7 @@
                                     "guid": "{00000000-0000-0000-0000-000000000000}",
                                     "subId": 0
                                 },
-                                "assetHint": "primitiveassets/cylinder.azmodel"
+                                "assetHint": "objects/_primitives/_cylinder_1x1.fbx.azmodel"
                             }
                         }
                     }
