@@ -39,6 +39,8 @@ Thumbs.db
 # Docker
 docker/*.tar
 docker/*.gz
+docker/cache/*
+!docker/cache/.gitkeep
 
 # Logs
 *.log
@@ -48,3 +50,13 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# Local research / scratch artifacts
+AMD GPU Containers for Robotics.pdf
+o3de-ros2-deep-research.md
+Untitled.png
+
+# Auto-generated local runtime overrides
+Project/Registry/physxdebugconfiguration.setreg
+Project/Registry/physxdefaultsceneconfiguration.setreg
+Project/Registry/physxsystemconfiguration.setreg
