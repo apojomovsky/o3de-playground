@@ -31,6 +31,7 @@ RUN apt-get update \
             git \
             git-lfs \
             libglu1-mesa-dev \
+            libevdev2 \
             libxcb-xinerama0 \
             libfontconfig1-dev \
             libxcb-xkb-dev \

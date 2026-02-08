@@ -65,6 +65,11 @@ ros2 launch playground_nav navigation.launch.py
 # Fast iteration (no image rebuild for level/asset edits)
 # run.sh now bind-mounts host Project/{Levels,Registry,Assets,Scripts} by default
 ./scripts/run.sh game --amd
+
+# Asset processing behavior for game launch:
+# - default: auto (runs once on first run, then skips using cache stamp)
+# - force:   ./scripts/run.sh game --amd --process-assets
+# - skip:    ./scripts/run.sh game --amd --skip-process-assets
 ```
 
 ### Option 2: Native Build

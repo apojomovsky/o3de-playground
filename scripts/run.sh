@@ -26,11 +26,14 @@ Options:
   --audio   Enable host audio passthrough (/dev/snd)
   --tag     Image tag (default: latest)
   --no-mounts  Disable host project bind mounts
+  --process-assets  Force AssetProcessorBatch before game launch
+  --skip-process-assets  Never run AssetProcessorBatch before game launch
 
 Examples:
   ./scripts/run.sh shell --nvidia
   ./scripts/run.sh editor --amd
   ./scripts/run.sh nav
+  ./scripts/run.sh game --amd --process-assets
 EOF
 }
 
@@ -111,6 +114,7 @@ COMMAND="shell"
 AUDIO_MODE="dummy"
 O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
 USE_MOUNTS=1
+PROCESS_ASSETS_MODE="auto"
 MOUNT_OPTS=()
 
 build_mount_opts() {
@@ -133,6 +137,8 @@ build_mount_opts() {
     if [[ -d "$host_project/Scripts" ]]; then
         MOUNT_OPTS+=(-v "$host_project/Scripts:/data/workspace/Project/Scripts:rw")
     fi
+    mkdir -p "$host_project/Cache"
+    MOUNT_OPTS+=(-v "$host_project/Cache:/data/workspace/Project/Cache:rw")
     if [[ -d "$host_ros2/src" ]]; then
         MOUNT_OPTS+=(-v "$host_ros2/src:/data/workspace/ros2_ws/src:rw")
     fi
@@ -162,6 +168,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-mounts)
             USE_MOUNTS=0
+            shift
+            ;;
+        --process-assets)
+            PROCESS_ASSETS_MODE="always"
+            shift
+            ;;
+        --skip-process-assets)
+            PROCESS_ASSETS_MODE="never"
             shift
             ;;
         -h|--help)
@@ -196,7 +210,15 @@ case "$COMMAND" in
         CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project"
         ;;
     game)
-        CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch --project-path /data/workspace/Project && /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher --project-path /data/workspace/Project"
+        AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"
+        GAME_BIN="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher"
+        if [[ "$PROCESS_ASSETS_MODE" == "always" ]]; then
+            CMD="$AP_BIN --project-path /data/workspace/Project && $GAME_BIN --project-path /data/workspace/Project"
+        elif [[ "$PROCESS_ASSETS_MODE" == "never" ]]; then
+            CMD="$GAME_BIN --project-path /data/workspace/Project"
+        else
+            CMD="mkdir -p /data/workspace/Project/Cache/linux; if [[ ! -f /data/workspace/Project/Cache/linux/.ap_autorun.stamp ]]; then echo '[INFO] First run detected, processing assets...'; $AP_BIN --project-path /data/workspace/Project && touch /data/workspace/Project/Cache/linux/.ap_autorun.stamp; else echo '[INFO] Asset processing already completed (stamp found). Use --process-assets to force.'; fi; $GAME_BIN --project-path /data/workspace/Project"
+        fi
         ;;
     nav)
         CMD="source /opt/ros/jazzy/setup.bash && source /data/workspace/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
@@ -206,6 +228,7 @@ esac
 echo -e "${GREEN}Running: $CMD${NC}"
 echo "GPU mode: $GPU"
 echo "Audio mode: $AUDIO_MODE"
+echo "Asset processing mode: $PROCESS_ASSETS_MODE"
 if [[ "$USE_MOUNTS" == "1" ]]; then
     echo "Host mounts: enabled"
 else
