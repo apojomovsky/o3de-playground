@@ -117,6 +117,35 @@ USE_MOUNTS=1
 PROCESS_ASSETS_MODE="auto"
 MOUNT_OPTS=()
 
+seed_host_cache_from_image() {
+    if [[ "$USE_MOUNTS" != "1" ]] || [[ "$COMMAND" != "game" ]] || [[ "$PROCESS_ASSETS_MODE" != "auto" ]]; then
+        return
+    fi
+
+    local host_cache_linux="$PROJECT_ROOT/Project/Cache/linux"
+    local stamp_file="$host_cache_linux/.ap_autorun.stamp"
+
+    mkdir -p "$host_cache_linux"
+
+    if [[ -f "$stamp_file" ]]; then
+        return
+    fi
+
+    echo "[INFO] First run: seeding host cache from image..."
+
+    local container_id
+    container_id=$(docker create "${IMAGE_NAME}:${TAG}" /bin/true)
+
+    if docker cp "$container_id:/data/workspace/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1; then
+        touch "$stamp_file"
+        echo "[INFO] Host cache seeded from image. Skipping initial AssetProcessorBatch."
+    else
+        echo "[WARN] Could not seed host cache from image. Falling back to AssetProcessorBatch."
+    fi
+
+    docker rm -f "$container_id" >/dev/null 2>&1 || true
+}
+
 build_mount_opts() {
     if [[ "$USE_MOUNTS" != "1" ]]; then
         return
@@ -201,6 +230,7 @@ if ! docker image inspect "${IMAGE_NAME}:${TAG}" &> /dev/null; then
 fi
 
 build_mount_opts
+seed_host_cache_from_image
 
 case "$COMMAND" in
     shell)
@@ -212,12 +242,17 @@ case "$COMMAND" in
     game)
         AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"
         GAME_BIN="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher"
+        STAMP_PATH="/data/workspace/Project/Cache/linux/.ap_autorun.stamp"
         if [[ "$PROCESS_ASSETS_MODE" == "always" ]]; then
             CMD="$AP_BIN --project-path /data/workspace/Project && $GAME_BIN --project-path /data/workspace/Project"
         elif [[ "$PROCESS_ASSETS_MODE" == "never" ]]; then
             CMD="$GAME_BIN --project-path /data/workspace/Project"
         else
-            CMD="mkdir -p /data/workspace/Project/Cache/linux; if [[ ! -f /data/workspace/Project/Cache/linux/.ap_autorun.stamp ]]; then echo '[INFO] First run detected, processing assets...'; $AP_BIN --project-path /data/workspace/Project && touch /data/workspace/Project/Cache/linux/.ap_autorun.stamp; else echo '[INFO] Asset processing already completed (stamp found). Use --process-assets to force.'; fi; $GAME_BIN --project-path /data/workspace/Project"
+            if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/Project/Cache/linux/.ap_autorun.stamp" ]]; then
+                CMD="echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path /data/workspace/Project"
+            else
+                CMD="mkdir -p /data/workspace/Project/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path /data/workspace/Project && touch $STAMP_PATH; $GAME_BIN --project-path /data/workspace/Project"
+            fi
         fi
         ;;
     nav)

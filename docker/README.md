@@ -29,6 +29,9 @@ docker build -t o3de-playground:latest \
   --build-arg O3DE_VERSION=2510.2 \
   --build-arg O3DE_EXTRAS_VERSION=2510.2 \
   -f docker/Dockerfile .
+
+# Optional: seed host Project/Cache from the built image
+./scripts/build.sh seed-cache
 ```
 
 ### Build Arguments
@@ -138,8 +141,8 @@ docker run -it \
 
 ### Fast No-Rebuild Loop
 
-Use `scripts/run.sh` for day-to-day level/asset iteration. It bind-mounts host project content and runs
-`AssetProcessorBatch` automatically on first run (stamp-based), so you do not need to rebuild the Docker image for content changes.
+Use `scripts/run.sh` for day-to-day level/asset iteration. It bind-mounts host project content and seeds host
+`Project/Cache` from the image on first run. If seeding is unavailable, it falls back to `AssetProcessorBatch`.
 
 ```bash
 ./scripts/run.sh game --amd

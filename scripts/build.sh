@@ -14,10 +14,12 @@
 #   2 - Docker with O3DE installed
 #   3 - Project registration
 #   4 - Full build (project + assets)
+#   5 - Seed host asset cache from built image
 #   all - Run all stages (default)
 #
 # Examples:
 #   ./scripts/build.sh 1      # Build just the base image
+#   ./scripts/build.sh 5      # Seed host cache from image
 #   ./scripts/build.sh all    # Build everything
 #   ./scripts/build.sh        # Same as 'all'
 #
@@ -131,6 +133,47 @@ ensure_o3de_deb_cache() {
     fi
 
     log OK "O3DE .deb cache is ready"
+}
+
+seed_host_asset_cache() {
+    check_command docker
+
+    local host_cache_linux="$PROJECT_ROOT/Project/Cache/linux"
+    local stamp_file="$host_cache_linux/.ap_autorun.stamp"
+    local host_uid
+    local host_gid
+    host_uid=$(id -u)
+    host_gid=$(id -g)
+
+    if ! docker image inspect "${IMAGE_NAME}:latest" &> /dev/null; then
+        die "Image ${IMAGE_NAME}:latest not found; run stage 4 first"
+    fi
+
+    mkdir -p "$host_cache_linux"
+
+    # Normalize ownership in case previous runs wrote root-owned files via bind mounts.
+    docker run --rm \
+        -v "$PROJECT_ROOT/Project/Cache:/cache" \
+        "${IMAGE_NAME}:latest" \
+        bash -lc "mkdir -p /cache/linux && chown -R $host_uid:$host_gid /cache" >/dev/null 2>&1 || true
+
+    rm -rf "$host_cache_linux"
+    mkdir -p "$host_cache_linux"
+
+    log INFO "Seeding host asset cache from ${IMAGE_NAME}:latest..."
+    local container_id
+    container_id=$(docker create "${IMAGE_NAME}:latest" /bin/true)
+
+    if docker cp "$container_id:/data/workspace/Project/Cache/linux/." "$host_cache_linux/" 2>> "$LOG_FILE"; then
+        touch "$stamp_file"
+        log OK "Host asset cache seeded: $host_cache_linux"
+    else
+        docker rm -f "$container_id" >/dev/null 2>&1 || true
+        log WARN "Failed to seed host asset cache from image; first run will process assets"
+        return
+    fi
+
+    docker rm -f "$container_id" >/dev/null 2>&1 || true
 }
 
 stage_header() {
@@ -380,6 +423,8 @@ stage_4_full_build() {
     else
         log WARN "Editor binary not found in expected O3DE install path"
     fi
+
+    seed_host_asset_cache
     
     stage_complete 4
     
@@ -408,6 +453,12 @@ stage_4_full_build() {
     echo "    -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \\" 
     echo "    ${IMAGE_NAME}:latest"
     echo ""
+}
+
+stage_5_seed_cache() {
+    stage_header 5 "Seed Host Asset Cache"
+    seed_host_asset_cache
+    stage_complete 5
 }
 
 # =============================================================================
@@ -460,8 +511,11 @@ main() {
             stage_3_project_registration
             stage_4_full_build
             ;;
+        5|seed|seed-cache)
+            stage_5_seed_cache
+            ;;
         *)
-            echo "Usage: $0 [0|1|2|3|4|all]"
+            echo "Usage: $0 [0|1|2|3|4|5|seed|seed-cache|all]"
             echo ""
             echo "Stages:"
             echo "  0   - ROS2 workspace verification only"
@@ -469,6 +523,7 @@ main() {
             echo "  2   - Docker + O3DE installation"
             echo "  3   - Project registration check"
             echo "  4   - Full build (same as 'all')"
+            echo "  5   - Seed host asset cache from latest image"
             echo "  all - Run all stages (default)"
             exit 1
             ;;

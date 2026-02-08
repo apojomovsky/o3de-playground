@@ -30,6 +30,9 @@ This project provides a ready-to-use environment for:
 ```bash
 # Recommended: use build script family (auto-caches O3DE .deb)
 ./scripts/build.sh 4
+# Stage 4 also seeds host Project/Cache from the built image for faster first run.
+# You can re-seed explicitly anytime with:
+./scripts/build.sh seed-cache
 
 # Or if you still want direct Docker invocation:
 ./scripts/cache-o3de-deb.sh --version 2510.2
@@ -67,7 +70,7 @@ ros2 launch playground_nav navigation.launch.py
 ./scripts/run.sh game --amd
 
 # Asset processing behavior for game launch:
-# - default: auto (runs once on first run, then skips using cache stamp)
+# - default: auto (seeds host cache from image on first run; falls back to AP if needed)
 # - force:   ./scripts/run.sh game --amd --process-assets
 # - skip:    ./scripts/run.sh game --amd --skip-process-assets
 ```
