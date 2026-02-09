@@ -33,7 +33,8 @@
         "RemoteTools",
         "ROS2>=3.3.0",
         "ROS2Sensors",
-        "ROS2Controllers"
+        "ROS2Controllers",
+        "ROS2RobotImporter"
     ],
     "engine_version": "2510.2"
 }

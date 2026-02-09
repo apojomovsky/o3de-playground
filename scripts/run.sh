@@ -154,6 +154,9 @@ build_mount_opts() {
     local host_project="$PROJECT_ROOT/Project"
     local host_ros2="$PROJECT_ROOT/ros2_ws"
 
+    if [[ -f "$host_project/project.json" ]]; then
+        MOUNT_OPTS+=(-v "$host_project/project.json:/data/workspace/Project/project.json:rw")
+    fi
     if [[ -d "$host_project/Levels" ]]; then
         MOUNT_OPTS+=(-v "$host_project/Levels:/data/workspace/Project/Levels:rw")
     fi
@@ -168,9 +171,8 @@ build_mount_opts() {
     fi
     mkdir -p "$host_project/Cache"
     MOUNT_OPTS+=(-v "$host_project/Cache:/data/workspace/Project/Cache:rw")
-    if [[ -d "$host_ros2/src" ]]; then
-        MOUNT_OPTS+=(-v "$host_ros2/src:/data/workspace/ros2_ws/src:rw")
-    fi
+    mkdir -p "$host_ros2/src"
+    MOUNT_OPTS+=(-v "$host_ros2/src:/data/workspace/ros2_ws/src:rw")
 }
 
 while [[ $# -gt 0 ]]; do
@@ -237,7 +239,8 @@ case "$COMMAND" in
         CMD="exec /bin/bash"
         ;;
     editor)
-        CMD="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project"
+        EDITOR_LOG_DIR="/data/workspace/Project/Cache/linux/log"
+        CMD="source /opt/ros/jazzy/setup.bash; if [[ -f /data/workspace/ros2_ws/install/setup.bash ]]; then source /data/workspace/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; mkdir -p $EDITOR_LOG_DIR && /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project --project-log-path $EDITOR_LOG_DIR"
         ;;
     game)
         AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"

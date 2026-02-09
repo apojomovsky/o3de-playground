@@ -144,6 +144,15 @@ docker run -it \
 Use `scripts/run.sh` for day-to-day level/asset iteration. It bind-mounts host project content and seeds host
 `Project/Cache` from the image on first run. If seeding is unavailable, it falls back to `AssetProcessorBatch`.
 
+`scripts/run.sh` also bind-mounts `Project/project.json`, so gem enables (including `ROS2RobotImporter`) persist
+across container restarts.
+
+Editor runs from `scripts/run.sh` write logs to `Project/Cache/linux/log` via `--project-log-path`, so log files are
+available on the host and across ephemeral container sessions.
+
+`scripts/run.sh` always mounts host `ros2_ws/src` to `/data/workspace/ros2_ws/src`.
+For `editor` runs, the script also sources ROS setup files and prints `AMENT_PREFIX_PATH` before launching O3DE.
+
 ```bash
 ./scripts/run.sh game --amd
 ```
