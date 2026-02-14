@@ -179,7 +179,7 @@ if ! docker image inspect "${IMAGE_NAME}:${TAG}" &> /dev/null; then
 fi
 
 build_mount_opts
-seed_host_cache_from_image
+seed_host_project_data
 
 CONTAINER_NAME="o3de-playground-run"
 
