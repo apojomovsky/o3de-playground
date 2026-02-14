@@ -183,6 +183,18 @@ seed_host_project_data
 
 CONTAINER_NAME="o3de-playground-run"
 
+cleanup_if_no_sessions() {
+    local active_shells
+    active_shells=$(docker top "${CONTAINER_NAME}" 2>/dev/null | grep -c "[b]ash") || active_shells=0
+    if [[ "$active_shells" -eq 0 ]]; then
+        echo -e "${YELLOW}No active sessions. Stopping and removing container...${NC}"
+        docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+    else
+        echo -e "${GREEN}Container has $active_shells active session(s), leaving it running.${NC}"
+    fi
+}
+
 ensure_container_running() {
     if docker container inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
         if [[ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}")" == "true" ]]; then
@@ -336,7 +348,8 @@ case "$COMMAND" in
         
         CMD="${PRE_CMD}${CHECK_CMD}; source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path ${PROJECT_PATH}"
         echo -e "${GREEN}Running: $CMD${NC}"
-        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
+        docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
+        cleanup_if_no_sessions
         ;;
     game)
         ensure_container_running
@@ -363,26 +376,15 @@ case "$COMMAND" in
             fi
         fi
         echo -e "${GREEN}Running: $CMD${NC}"
-        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
+        docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
+        cleanup_if_no_sessions
         ;;
     nav)
         ensure_container_running
         PRE_CMD=$(get_ros_build_cmd)
         CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash && source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
         echo -e "${GREEN}Running: $CMD${NC}"
-        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
-        ;;
-esac
-
-case "$GPU" in
-    nvidia)
-        run_nvidia "$CMD"
-        ;;
-    amd)
-        run_amd "$CMD"
-        ;;
-    none)
-        echo -e "${RED}No GPU detected. Running without GPU support (will likely fail for Editor).${NC}"
-        docker run -it --rm --init "${MOUNT_OPTS[@]}" "${IMAGE_NAME}:${TAG}" bash -lc "$CMD"
+        docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
+        cleanup_if_no_sessions
         ;;
 esac
