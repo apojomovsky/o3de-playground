@@ -30,8 +30,7 @@ Options:
   --process-assets  Force AssetProcessorBatch before game launch
   --skip-process-assets  Never run AssetProcessorBatch before game launch
   --build-ros       Rebuild ROS2 workspace (colcon build) before launch
-  --project NAME    Open specific project (default: Project)
-  --project-manager Open O3DE Project Manager (no project selected)
+  --project NAME    Mount specific project directory (default: Project)
 
 Examples:
   ./scripts/run.sh shell --nvidia
@@ -60,7 +59,6 @@ USE_MOUNTS=1
 PROCESS_ASSETS_MODE="auto"
 BUILD_ROS=0
 PROJECT_NAME="Project"
-LAUNCH_PROJECT_MANAGER=0
 MOUNT_OPTS=()
 CONTAINER_USER="o3de"
 CONTAINER_WORKSPACE="/home/${CONTAINER_USER}/workspace"
@@ -169,10 +167,6 @@ while [[ $# -gt 0 ]]; do
         --project)
             PROJECT_NAME="$2"
             shift 2
-            ;;
-        --project-manager)
-            LAUNCH_PROJECT_MANAGER=1
-            shift
             ;;
         -h|--help)
             usage
@@ -343,13 +337,7 @@ case "$COMMAND" in
     editor)
         ensure_container_running
         PRE_CMD=$(get_ros_build_cmd)
-        
-        PROJECT_ARG="--project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME"
-        if [[ "$LAUNCH_PROJECT_MANAGER" == "1" ]]; then
-            PROJECT_ARG=""
-        fi
-
-        CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor ${PROJECT_ARG}"
+        CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor"
         echo -e "${GREEN}Running: $CMD${NC}"
         exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
