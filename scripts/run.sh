@@ -29,6 +29,7 @@ Options:
   --no-mounts  Disable host project bind mounts
   --process-assets  Force AssetProcessorBatch before game launch
   --skip-process-assets  Never run AssetProcessorBatch before game launch
+  --build-ros       Rebuild ROS2 workspace (colcon build) before launch
 
 Examples:
   ./scripts/run.sh shell --nvidia
@@ -55,6 +56,7 @@ AUDIO_MODE="dummy"
 O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
 USE_MOUNTS=1
 PROCESS_ASSETS_MODE="auto"
+BUILD_ROS=0
 MOUNT_OPTS=()
 CONTAINER_USER="o3de"
 CONTAINER_WORKSPACE="/home/${CONTAINER_USER}/workspace"
@@ -149,6 +151,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-process-assets)
             PROCESS_ASSETS_MODE="never"
+            shift
+            ;;
+        --build-ros)
+            BUILD_ROS=1
             shift
             ;;
         -h|--help)
@@ -301,6 +307,12 @@ start_amd_container() {
         sleep infinity >/dev/null
 }
 
+get_ros_build_cmd() {
+    if [[ "$BUILD_ROS" == "1" ]]; then
+        echo "echo '[INFO] Rebuilding ROS2 workspace...'; source /opt/ros/jazzy/setup.bash && cd ${CONTAINER_WORKSPACE}/ros2_ws && colcon build --symlink-install && "
+    fi
+}
+
 case "$COMMAND" in
     attach|shell)
         ensure_container_running
@@ -313,24 +325,26 @@ case "$COMMAND" in
         ;;
     editor)
         ensure_container_running
-        CMD="source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path ${CONTAINER_WORKSPACE}/Project"
+        PRE_CMD=$(get_ros_build_cmd)
+        CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path ${CONTAINER_WORKSPACE}/Project"
         echo -e "${GREEN}Running: $CMD${NC}"
         exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
     game)
         ensure_container_running
+        PRE_CMD=$(get_ros_build_cmd)
         AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"
         GAME_BIN="${CONTAINER_WORKSPACE}/Project/build/linux/bin/profile/Playground.GameLauncher"
         STAMP_PATH="${CONTAINER_WORKSPACE}/Project/Cache/linux/.ap_autorun.stamp"
         if [[ "$PROCESS_ASSETS_MODE" == "always" ]]; then
-            CMD="$AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
+            CMD="${PRE_CMD}$AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
         elif [[ "$PROCESS_ASSETS_MODE" == "never" ]]; then
-            CMD="$GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
+            CMD="${PRE_CMD}$GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
         else
             if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/Project/Cache/linux/.ap_autorun.stamp" ]]; then
-                CMD="echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
+                CMD="${PRE_CMD}echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
             else
-                CMD="mkdir -p ${CONTAINER_WORKSPACE}/Project/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && touch $STAMP_PATH; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
+                CMD="${PRE_CMD}mkdir -p ${CONTAINER_WORKSPACE}/Project/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && touch $STAMP_PATH; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
             fi
         fi
         echo -e "${GREEN}Running: $CMD${NC}"
@@ -338,7 +352,8 @@ case "$COMMAND" in
         ;;
     nav)
         ensure_container_running
-        CMD="source /opt/ros/jazzy/setup.bash && source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
+        PRE_CMD=$(get_ros_build_cmd)
+        CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash && source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
         echo -e "${GREEN}Running: $CMD${NC}"
         exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;

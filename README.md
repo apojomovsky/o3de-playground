@@ -125,6 +125,7 @@ The `shell` command is smart - if a container is already running (e.g. you launc
 - `--no-mounts` - Disable project bind mounts (use container copy)
 - `--process-assets` - Force asset processing before game launch
 - `--skip-process-assets` - Skip asset processing entirely
+- `--build-ros` - Rebuild ROS2 workspace (colcon build) before launch
 
 **Tip:** You can open multiple shells in the running container:
 
