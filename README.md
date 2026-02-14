@@ -162,6 +162,14 @@ Project/Cache/               → /home/o3de/workspace/Project/Cache/
 ros2_ws/                     → /home/o3de/workspace/ros2_ws/
 ```
 
+### Creating/Opening Custom Projects
+
+To create or open a project other than the default `Project`:
+
+1.  **Prepare Directory**: `mkdir ~/o3de-playground/MyProject`
+2.  **Launch**: `./scripts/run.sh editor --amd --project MyProject`
+3.  **Project Manager**: Create new project in `/home/o3de/workspace/MyProject`.
+
 **Fast Iteration Loop:**
 
 1. Edit level/asset on host using Editor
