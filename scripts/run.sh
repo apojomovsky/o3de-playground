@@ -251,6 +251,32 @@ start_amd_container() {
         audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
     fi
     
+    # Dynamically detect host group IDs for GPU devices to ensure access
+    # This fixes issues where host 'render' GID (e.g. 992) != container 'render' GID (e.g. 991)
+    local group_opts=()
+    
+    if [[ -e /dev/dri/renderD128 ]]; then
+        local render_gid=$(stat -c '%g' /dev/dri/renderD128)
+        group_opts+=(--group-add "$render_gid")
+    else
+        group_opts+=(--group-add render)
+    fi
+    
+    if [[ -e /dev/kfd ]]; then
+        local kfd_gid=$(stat -c '%g' /dev/kfd)
+        # Avoid duplicate if same as render
+        if [[ "$kfd_gid" != "${render_gid:-}" ]]; then
+            group_opts+=(--group-add "$kfd_gid")
+        fi
+    fi
+    
+    if [[ -e /dev/dri/card0 ]]; then
+        local video_gid=$(stat -c '%g' /dev/dri/card0)
+        group_opts+=(--group-add "$video_gid")
+    else
+        group_opts+=(--group-add video)
+    fi
+
     xhost +local:docker 2>/dev/null || true
     local xauth_opts=()
     if [[ -f "$HOME/.Xauthority" ]]; then
@@ -261,8 +287,7 @@ start_amd_container() {
         --init \
         --device=/dev/kfd --device=/dev/dri \
         "${MOUNT_OPTS[@]}" \
-        --group-add video \
-        --group-add render \
+        "${group_opts[@]}" \
         --security-opt seccomp=unconfined \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         "${xauth_opts[@]}" \
