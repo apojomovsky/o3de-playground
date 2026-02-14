@@ -179,7 +179,10 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2 \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Sensors \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2RobotImporter
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2RobotImporter \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2SampleRobots \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/WarehouseAssets \
+    && $O3DE_ROOT/scripts/o3de.sh register -tp $O3DE_EXTRAS_ROOT/Templates/Ros2ProjectTemplate
 
 # Pre-download common 3rdParty packages by running cmake configure on engine SDK
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
@@ -216,12 +219,6 @@ COPY --chown=${USER_ID}:${GROUP_ID} ros2_ws/ $WORKSPACE/ros2_ws/
 # Register project (creates ~/.o3de with correct paths from the start)
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/python/get_python.sh \
-    && $O3DE_ROOT/scripts/o3de.sh register --this-engine \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/LevelGeoreferencing \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2 \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Sensors \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
-    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2RobotImporter \
     && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT --force
 
 # Configure O3DE project (now uses cached 3rdParty packages)

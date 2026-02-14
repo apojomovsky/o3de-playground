@@ -35,7 +35,9 @@
         "ROS2>=3.3.0",
         "ROS2Sensors",
         "ROS2Controllers",
-        "ROS2RobotImporter"
+        "ROS2RobotImporter",
+        "ROS2SampleRobots",
+        "WarehouseAssets"
     ],
     "engine_version": "2510.2"
 }
