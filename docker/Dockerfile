@@ -39,6 +39,7 @@ RUN apt-get update \
             libglu1-mesa-dev \
             libevdev2 \
             libevdev-dev \
+            ffmpeg \
             libxcb-xinerama0 \
             libfontconfig1-dev \
             libxcb-xkb-dev \
