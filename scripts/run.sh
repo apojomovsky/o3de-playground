@@ -105,25 +105,34 @@ build_mount_opts() {
     local host_project="$PROJECT_ROOT/$PROJECT_NAME"
     local host_ros2="$PROJECT_ROOT/ros2_ws"
 
-    if [[ -f "$host_project/project.json" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/project.json:${CONTAINER_WORKSPACE}/$PROJECT_NAME/project.json:rw")
-    fi
-    if [[ -d "$host_project/Levels" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Levels:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Levels:rw")
-    fi
-    if [[ -d "$host_project/Registry" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Registry:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Registry:rw")
-    fi
-    if [[ -d "$host_project/Assets" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Assets:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Assets:rw")
-    fi
-    if [[ -d "$host_project/Scripts" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Scripts:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Scripts:rw")
-    fi
-    mkdir -p "$host_project/Cache"
-    MOUNT_OPTS+=(-v "$host_project/Cache:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Cache:rw")
+    # Always mount ROS2 src
     mkdir -p "$host_ros2/src"
     MOUNT_OPTS+=(-v "$host_ros2/src:${CONTAINER_WORKSPACE}/ros2_ws/src:rw")
+
+    if [[ "$PROJECT_NAME" != "Project" ]]; then
+        # For custom projects, mount the entire directory to allow creation/persistence
+        mkdir -p "$host_project"
+        MOUNT_OPTS+=(-v "$host_project:${CONTAINER_WORKSPACE}/$PROJECT_NAME:rw")
+    else
+        # For default 'Project', use granular mounts to preserve image build artifacts
+        if [[ -f "$host_project/project.json" ]]; then
+            MOUNT_OPTS+=(-v "$host_project/project.json:${CONTAINER_WORKSPACE}/$PROJECT_NAME/project.json:rw")
+        fi
+        if [[ -d "$host_project/Levels" ]]; then
+            MOUNT_OPTS+=(-v "$host_project/Levels:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Levels:rw")
+        fi
+        if [[ -d "$host_project/Registry" ]]; then
+            MOUNT_OPTS+=(-v "$host_project/Registry:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Registry:rw")
+        fi
+        if [[ -d "$host_project/Assets" ]]; then
+            MOUNT_OPTS+=(-v "$host_project/Assets:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Assets:rw")
+        fi
+        if [[ -d "$host_project/Scripts" ]]; then
+            MOUNT_OPTS+=(-v "$host_project/Scripts:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Scripts:rw")
+        fi
+        mkdir -p "$host_project/Cache"
+        MOUNT_OPTS+=(-v "$host_project/Cache:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Cache:rw")
+    fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -237,7 +246,7 @@ start_nvidia_container() {
     xhost +local:docker 2>/dev/null || true
     local xauth_opts=()
     if [[ -f "$HOME/.Xauthority" ]]; then
-        xauth_opts+=(-v "$HOME/.Xauthority:/home/$(whoami)/.Xauthority:ro" -e XAUTHORITY="/home/$(whoami)/.Xauthority")
+        xauth_opts+=(-v "$HOME/.Xauthority:/home/${CONTAINER_USER}/.Xauthority:ro" -e XAUTHORITY="/home/${CONTAINER_USER}/.Xauthority")
     fi
     
     docker run -d \
@@ -297,7 +306,7 @@ start_amd_container() {
     xhost +local:docker 2>/dev/null || true
     local xauth_opts=()
     if [[ -f "$HOME/.Xauthority" ]]; then
-        xauth_opts+=(-v "$HOME/.Xauthority:/home/$(whoami)/.Xauthority:ro" -e XAUTHORITY="/home/$(whoami)/.Xauthority")
+        xauth_opts+=(-v "$HOME/.Xauthority:/home/${CONTAINER_USER}/.Xauthority:ro" -e XAUTHORITY="/home/${CONTAINER_USER}/.Xauthority")
     fi
     
     docker run -d \
