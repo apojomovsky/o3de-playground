@@ -297,6 +297,7 @@ start_amd_container() {
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         "${xauth_opts[@]}" \
         -e DISPLAY="$DISPLAY" \
+        -e QT_X11_NO_MITSHM=1 \
         -e XDG_RUNTIME_DIR=/tmp/runtime-root \
         -e QT_QPA_PLATFORM=xcb \
         -e VK_ICD_FILENAMES="$vk_icd" \
