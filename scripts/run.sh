@@ -346,7 +346,14 @@ case "$COMMAND" in
     editor)
         ensure_container_running
         PRE_CMD=$(get_ros_build_cmd)
-        CMD="${PRE_CMD}source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor"
+        
+        PROJECT_PATH="${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+        
+        # Auto-create project if missing
+        # We check for project.json inside the container.
+        CHECK_CMD="if [[ ! -f ${PROJECT_PATH}/project.json ]]; then echo '[INFO] Project ${PROJECT_NAME} not found. Creating...'; /opt/O3DE/${O3DE_INSTALL_VERSION}/scripts/o3de.sh create-project --project-path ${PROJECT_PATH}; /opt/O3DE/${O3DE_INSTALL_VERSION}/scripts/o3de.sh register -pp ${PROJECT_PATH}; fi"
+        
+        CMD="${PRE_CMD}${CHECK_CMD}; source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path ${PROJECT_PATH}"
         echo -e "${GREEN}Running: $CMD${NC}"
         exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
