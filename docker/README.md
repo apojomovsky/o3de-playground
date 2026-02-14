@@ -79,13 +79,13 @@ docker run --runtime=nvidia --gpus all \
 **Inside the container**, launch the O3DE Editor:
 
 ```bash
-/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
+/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /home/$USER/workspace/Project
 ```
 
 Or launch the game:
 
 ```bash
-/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
+/home/$USER/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
 ```
 
 ### AMD GPU (Wayland Host with XWayland)
@@ -109,7 +109,7 @@ docker run --device=/dev/kfd --device=/dev/dri \
 **Inside the container**, launch the O3DE Editor:
 
 ```bash
-/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
+/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /home/$USER/workspace/Project
 ```
 
 **Headless Fallback**: If display issues occur, use headless mode:
@@ -123,7 +123,7 @@ docker run --device=/dev/kfd --device=/dev/dri \
   -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \
   --name o3de-playground \
   o3de-playground:latest \
-  /data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
+  /home/$USER/workspace/Project/build/linux/bin/profile/Playground.GameLauncher
 ```
 
 ### Interactive Shell
@@ -174,10 +174,10 @@ Disable bind mounts (fallback behavior):
 
 ### Workspace Structure
 
-Inside the container at `/data/workspace/`:
+Inside the container at `/home/$USER/workspace/` (where `$USER` is your host user):
 
 ```
-/data/workspace/
+/home/$USER/workspace/
 ├── o3de/                    # O3DE engine
 ├── o3de-extras/             # ROS2 Gem and additional packages
 ├── Project/                 # O3DE Playground project
@@ -194,10 +194,10 @@ Inside the container at `/data/workspace/`:
 The container automatically sets:
 
 ```bash
-WORKSPACE=/data/workspace
-O3DE_ROOT=/data/workspace/o3de
-O3DE_EXTRAS_ROOT=/data/workspace/o3de-extras
-PROJECT_ROOT=/data/workspace/Project
+WORKSPACE=/home/$USER/workspace
+O3DE_ROOT=/home/$USER/workspace/o3de
+O3DE_EXTRAS_ROOT=/home/$USER/workspace/o3de-extras
+PROJECT_ROOT=/home/$USER/workspace/Project
 RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ```
 
@@ -205,7 +205,7 @@ RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 ROS2 Jazzy environment is automatically sourced. The entrypoint script:
 1. Sources `/opt/ros/jazzy/setup.bash`
-2. Sources `/data/workspace/ros2_ws/install/setup.bash` (if available)
+2. Sources `/home/$USER/workspace/ros2_ws/install/setup.bash` (if available)
 3. Sets `RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`
 
 ## Common Tasks
@@ -217,7 +217,7 @@ Inside the container:
 ```bash
 # Source ROS2 environment
 source /opt/ros/jazzy/setup.bash
-source /data/workspace/ros2_ws/install/setup.bash
+source /home/$USER/workspace/ros2_ws/install/setup.bash
 
 # Launch navigation
 ros2 launch o3de_kraken_nav navigation_multi.launch.py namespace:=robot_1 rviz:=True
@@ -226,7 +226,7 @@ ros2 launch o3de_kraken_nav navigation_multi.launch.py namespace:=robot_1 rviz:=
 ### Run Asset Processor
 
 ```bash
-/data/workspace/Project/build/linux/bin/profile/AssetProcessor
+/home/$USER/workspace/Project/build/linux/bin/profile/AssetProcessor
 ```
 
 ### Access ROS2 Topics
@@ -247,7 +247,7 @@ ros2 topic pub /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 1.0}}'
 Inside the container:
 
 ```bash
-cd /data/workspace/ros2_ws
+cd /home/$USER/workspace/ros2_ws
 colcon build --packages-select my_package
 ```
 

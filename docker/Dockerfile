@@ -9,7 +9,8 @@ ARG UBUNTU_VERSION=noble
 
 FROM ros:${ROS_VERSION}-ros-base-${UBUNTU_VERSION} AS base
 
-ENV WORKSPACE=/data/workspace
+ARG USERNAME=o3de
+ENV WORKSPACE=/home/${USERNAME}/workspace
 ENV LANG=en_US.UTF-8
 
 WORKDIR $WORKSPACE
@@ -22,7 +23,7 @@ RUN apt-get update \
     && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the required ubuntu packages
+# Install O3DE build dependencies and rosdep
 RUN apt-get update \
     && apt-get install -y \
             binutils \
@@ -46,28 +47,40 @@ RUN apt-get update \
             libpcre2-16-0 \
             ninja-build \
             python3-pip \
+            python3-rosdep \
             software-properties-common \
             vulkan-tools \
-            ros-${ROS_DISTRO}-ackermann-msgs \
-            ros-${ROS_DISTRO}-control-toolbox \
-            ros-${ROS_DISTRO}-gazebo-msgs \
-            ros-${ROS_DISTRO}-navigation2 \
-            ros-${ROS_DISTRO}-nav2-bringup \
-            ros-${ROS_DISTRO}-rviz2 \
-            ros-${ROS_DISTRO}-tf2-ros \
-            ros-${ROS_DISTRO}-slam-toolbox \
-            ros-${ROS_DISTRO}-pointcloud-to-laserscan \
             ros-${ROS_DISTRO}-cyclonedds \
             ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
-            && rm -rf /var/lib/apt/lists/* \
-            && pip install --break-system-packages python-statemachine
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --break-system-packages python-statemachine
 
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 # ============================================================================
-# Stage 2: O3DE Build
+# Stage 2: ROS2 Workspace Dependencies
 # ============================================================================
-FROM base AS o3de-builder
+FROM base AS ros-deps
+
+# Copy only ros2_ws to install dependencies
+COPY ros2_ws/ $WORKSPACE/ros2_ws/
+
+# Initialize rosdep and install all ROS2 workspace dependencies
+RUN rosdep init || true \
+    && rosdep update \
+    && . /opt/ros/${ROS_DISTRO}/setup.sh \
+    && apt-get update \
+    && rosdep install --from-paths $WORKSPACE/ros2_ws/src \
+                      --ignore-src \
+                      --rosdistro ${ROS_DISTRO} \
+                      --skip-keys="gazebo_ros gazebo_ros_pkgs hls_lfcd_lds_driver" \
+                      -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================================================
+# Stage 3: O3DE Dependencies Cache
+# ============================================================================
+FROM ros-deps AS o3de-deps
 
 # O3DE Variables
 ARG O3DE_VERSION=2510.2
@@ -79,9 +92,6 @@ ENV O3DE_ROOT=/opt/O3DE/${O3DE_INSTALL_VERSION}
 ARG O3DE_EXTRAS_VERSION=2510.2
 ARG O3DE_EXTRAS_REPO=https://github.com/o3de/o3de-extras.git
 ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
-
-# Project Variables
-ENV PROJECT_ROOT=$WORKSPACE/Project
 
 # Copy optional host-side O3DE .deb cache
 COPY docker/cache/ /tmp/o3de-deb-cache/
@@ -125,12 +135,12 @@ RUN set -eux; \
     rm -f "$selected_deb" "$selected_sha"; \
     rm -rf /var/lib/apt/lists/*
 
-# Clone O3DE extras and register gems (cache-friendly - no project files needed)
+# Clone O3DE extras
 RUN git clone --single-branch -b ${O3DE_EXTRAS_VERSION} $O3DE_EXTRAS_REPO $O3DE_EXTRAS_ROOT \
     && git -C $O3DE_EXTRAS_ROOT lfs install \
     && git -C $O3DE_EXTRAS_ROOT lfs pull
 
-# Register engine and gems (depends on install/clone layers only)
+# Register engine and gems
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/python/get_python.sh \
     && $O3DE_ROOT/scripts/o3de.sh register --this-engine \
@@ -140,14 +150,63 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
     && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2RobotImporter
 
-# Copy project files and register (changes here don't invalidate clone/register layers)
-COPY Project/ $PROJECT_ROOT/
-COPY ros2_ws/ $WORKSPACE/ros2_ws/
-
+# Pre-download common 3rdParty packages by running cmake configure on engine SDK
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT
+    && mkdir -p /tmp/cache-warmup \
+    && cd /tmp/cache-warmup \
+    && cmake -B build -G "Ninja Multi-Config" \
+             -S $O3DE_ROOT \
+             -DLY_PROJECTS="" \
+             -DLY_DISABLE_TEST_MODULES=ON 2>&1 | head -100 || true \
+    && cd / \
+    && rm -rf /tmp/cache-warmup
 
-# Configure O3DE project
+# ============================================================================
+# Stage 4: O3DE Project Build (as non-root user)
+# ============================================================================
+FROM o3de-deps AS o3de-builder
+
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+ARG USERNAME=o3de
+ARG O3DE_INSTALL_VERSION=25.10.2
+
+# Project Variables
+ENV PROJECT_ROOT=$WORKSPACE/Project
+
+# Create user BEFORE building (so everything has correct ownership from start)
+RUN groupadd -f -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
+    && (id -u ${USER_ID} >/dev/null 2>&1 && usermod -l ${USERNAME} -g ${GROUP_ID} $(id -nu ${USER_ID}) 2>/dev/null) || useradd -u ${USER_ID} -g ${GROUP_ID} -d /home/${USERNAME} -s /bin/bash ${USERNAME} 2>/dev/null || true \
+    && mkdir -p /home/${USERNAME} \
+    # Seed user cache from root cache (created in o3de-deps) to avoid re-downloading
+    && cp -r /root/.o3de /home/${USERNAME}/.o3de \
+    && find /home/${USERNAME}/.o3de -type f -not -path "*/packages/*" -exec sed -i "s|/root/.o3de|/home/${USERNAME}/.o3de|g" {} + 2>/dev/null || true \
+    && chown -R ${USER_ID}:${GROUP_ID} /home/${USERNAME} \
+    && chown -R ${USER_ID}:${GROUP_ID} /opt/O3DE/${O3DE_INSTALL_VERSION} \
+    && chown -R ${USER_ID}:${GROUP_ID} $WORKSPACE \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME}
+
+# Switch to non-root user for all build operations
+USER ${USERNAME}
+ENV HOME=/home/${USERNAME}
+
+# Copy project files with correct ownership
+COPY --chown=${USER_ID}:${GROUP_ID} Project/ $PROJECT_ROOT/
+COPY --chown=${USER_ID}:${GROUP_ID} ros2_ws/ $WORKSPACE/ros2_ws/
+
+# Register project (creates ~/.o3de with correct paths from the start)
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
+    && $O3DE_ROOT/python/get_python.sh \
+    && $O3DE_ROOT/scripts/o3de.sh register --this-engine \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/LevelGeoreferencing \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2 \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Sensors \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2Controllers \
+    && $O3DE_ROOT/scripts/o3de.sh register -gp $O3DE_EXTRAS_ROOT/Gems/ROS2RobotImporter \
+    && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT --force
+
+# Configure O3DE project (now uses cached 3rdParty packages)
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && cmake -B $PROJECT_ROOT/build/linux -G "Ninja Multi-Config" \
                             -S $PROJECT_ROOT \
@@ -166,30 +225,49 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && colcon build --symlink-install
 
 # ============================================================================
-# Stage 3: Final Runtime Image
+# Stage 5: Final Runtime Image
 # ============================================================================
-FROM base AS runtime
+FROM ros-deps AS runtime
 
 ARG O3DE_VERSION=2510.2
 ARG O3DE_INSTALL_VERSION=25.10.2
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+ARG USERNAME=o3de
 
-# Copy built artifacts from builder
+# Copy built artifacts from builder (built as user, so paths are already correct)
 COPY --from=o3de-builder /opt/O3DE/${O3DE_INSTALL_VERSION} /opt/O3DE/${O3DE_INSTALL_VERSION}
 COPY --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
 COPY --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
 COPY --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
-COPY --from=o3de-builder /root/.o3de /root/.o3de
+COPY --from=o3de-builder /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
+
+# Create user (should match builder user)
+RUN groupadd -f -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
+    && (id -u ${USER_ID} >/dev/null 2>&1 && usermod -l ${USERNAME} -g ${GROUP_ID} $(id -nu ${USER_ID}) 2>/dev/null) || useradd -u ${USER_ID} -g ${GROUP_ID} -d /home/${USERNAME} -s /bin/bash ${USERNAME} 2>/dev/null || true \
+    && chown -R ${USER_ID}:${GROUP_ID} /home/${USERNAME} \
+    && chown -R ${USER_ID}:${GROUP_ID} $WORKSPACE \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 # Set environment variables
 ENV O3DE_ROOT=/opt/O3DE/${O3DE_INSTALL_VERSION}
 ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
 ENV PROJECT_ROOT=$WORKSPACE/Project
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+ENV HOME=/home/${USERNAME}
+ENV PATH="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:${PATH}"
 
-# Setup ROS2 environment
+# Setup ROS2 environment and add O3DE binaries to PATH
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
     && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /etc/bash.bashrc \
-    && printf "pcm.!default {\n    type null\n}\nctl.!default {\n    type null\n}\n" > /etc/asound.conf
+    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" >> /etc/bash.bashrc \
+    && echo "alias sudo='sudo '" >> /etc/bash.bashrc \
+    && printf "pcm.!default {\n    type null\n}\nctl.!default {\n    type null\n}\n" > /etc/asound.conf \
+    && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/${USERNAME}/.bashrc \
+    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /home/${USERNAME}/.bashrc \
+    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" >> /home/${USERNAME}/.bashrc \
+    && chown ${USER_ID}:${GROUP_ID} /home/${USERNAME}/.bashrc
 
 # Create entrypoint script
 RUN echo '#!/bin/bash' > /entrypoint.sh \
@@ -200,6 +278,9 @@ RUN echo '#!/bin/bash' > /entrypoint.sh \
     && echo 'fi' >> /entrypoint.sh \
     && echo 'exec "$@"' >> /entrypoint.sh \
     && chmod +x /entrypoint.sh
+
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]

@@ -31,6 +31,7 @@
         "StartingPointInput",
         "TextureAtlas",
         "RemoteTools",
+        "LevelGeoreferencing",
         "ROS2>=3.3.0",
         "ROS2Sensors",
         "ROS2Controllers",

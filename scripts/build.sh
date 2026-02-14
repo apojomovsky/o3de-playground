@@ -164,7 +164,10 @@ seed_host_asset_cache() {
     local container_id
     container_id=$(docker create "${IMAGE_NAME}:latest" /bin/true)
 
-    if docker cp "$container_id:/data/workspace/Project/Cache/linux/." "$host_cache_linux/" 2>> "$LOG_FILE"; then
+    # Use current user's workspace path as we built the image for this user
+    local container_workspace="/home/$(whoami)/workspace"
+
+    if docker cp "$container_id:${container_workspace}/Project/Cache/linux/." "$host_cache_linux/" 2>> "$LOG_FILE"; then
         touch "$stamp_file"
         log OK "Host asset cache seeded: $host_cache_linux"
     else
@@ -403,6 +406,9 @@ stage_4_full_build() {
         --build-arg O3DE_INSTALL_VERSION="$O3DE_INSTALL_VERSION" \
         --build-arg O3DE_EXTRAS_VERSION="$O3DE_EXTRAS_VERSION" \
         --build-arg O3DE_DEB_SHA256="$O3DE_DEB_SHA256" \
+        --build-arg USER_ID="$(id -u)" \
+        --build-arg GROUP_ID="$(id -g)" \
+        --build-arg USERNAME="$(whoami)" \
         --progress=plain \
         -f "$DOCKERFILE" \
         "$PROJECT_ROOT" 2>&1 | tee -a "$LOG_FILE"; then

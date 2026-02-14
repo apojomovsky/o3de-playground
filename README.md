@@ -1,245 +1,448 @@
 # O3DE ROS2 Playground
 
-A containerized O3DE + ROS2 Jazzy playground for mobile robotics simulation.
+A Docker-based development environment for mobile robotics simulation using **O3DE 2510.2** and **ROS2 Jazzy**.
 
-## Overview
+Perfect for experimenting with navigation, SLAM, sensor simulation, and robotics algorithms without manual dependency management.
 
-This project provides a ready-to-use environment for:
-- **Experimentation** - Quick setup/teardown for testing robots and sensors
-- **Learning** - Understanding ROS2/O3DE integration patterns
-- **Development** - Platform for navigation, SLAM, and robotics algorithms
-- **Future extensibility** - Foundation for manipulation, multi-robot, and more
+## Features
 
-## Requirements
-
-### Hardware
-- GPU: NVIDIA (recommended) or AMD
-- RAM: 16GB minimum, 32GB recommended
-- Storage: 60GB+ free space
-
-### Software
-- Ubuntu 24.04 (Noble)
-- Docker with GPU support
-- For NVIDIA: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-- For AMD: ROCm drivers
+- 🐳 **Fully Dockerized** - One command to build, zero manual setup
+- 🤖 **ROS2 Jazzy** with Nav2 navigation stack and SLAM Toolbox
+- 🎮 **O3DE 2510.2** with PhysX5 physics and Atom renderer
+- 🔧 **Helper Scripts** - Simple commands for build, run, and development
+- 🎨 **Hot Reload** - Edit levels and assets without rebuilding containers
+- 🖥️ **GPU Support** - NVIDIA and AMD hardware acceleration
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Prerequisites
+
+**Hardware:**
+- GPU: NVIDIA (recommended) or AMD
+- RAM: 16GB minimum, 32GB recommended  
+- Storage: 60GB+ free space
+
+**Software:**
+- Ubuntu 24.04 (Noble)
+- Docker 24.0+
+- For NVIDIA: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+- For AMD: ROCm drivers
+
+### 1. Build the Environment
 
 ```bash
-# Recommended: use build script family (auto-caches O3DE .deb)
-./scripts/build.sh 4
-# Stage 4 also seeds host Project/Cache from the built image for faster first run.
-# You can re-seed explicitly anytime with:
-./scripts/build.sh seed-cache
+# Clone the repository
+git clone <repository-url>
+cd o3de-playground
 
-# Or if you still want direct Docker invocation:
-./scripts/cache-o3de-deb.sh --version 2510.2
-docker build -t o3de-playground:latest -f docker/Dockerfile .
+# Build everything (first build takes ~30-45 minutes)
+./scripts/build.sh
+```
 
-# Run with NVIDIA GPU (X11)
-xhost +local:docker
-docker run --runtime=nvidia --gpus all \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  -e DISPLAY=$DISPLAY \
-  o3de-playground:latest
+The build script automatically:
+- Downloads and caches O3DE 2510.2 installer
+- Installs ROS2 dependencies via rosdep
+- Compiles the O3DE project
+- Builds the ROS2 workspace
+- Seeds host-side asset cache for fast iteration
 
-# Run with AMD GPU (Wayland host using XWayland)
-docker run --device=/dev/kfd --device=/dev/dri \
-  --group-add video \
-  --group-add render \
-  --security-opt seccomp=unconfined \
-  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  -e DISPLAY=$DISPLAY \
-  -e XDG_RUNTIME_DIR=/tmp/runtime-root \
-  -e QT_QPA_PLATFORM=xcb \
-  -e VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/radeon_icd.json \
-  o3de-playground:latest
+### 2. Launch the Editor
 
-# Inside container: Launch Editor
-/opt/O3DE/25.10.2/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project
+```bash
+# Auto-detects GPU (NVIDIA/AMD)
+./scripts/run.sh editor
 
-# In another terminal: Launch Nav2
-docker exec -it <container_id> bash
-source /data/workspace/ros2_ws/install/setup.bash
-ros2 launch playground_nav navigation.launch.py
+# Or specify GPU explicitly
+./scripts/run.sh editor --nvidia
+./scripts/run.sh editor --amd
+```
 
-# Fast iteration (no image rebuild for level/asset edits)
-# run.sh now bind-mounts host Project/{Levels,Registry,Assets,Scripts} by default
+The editor opens with the Project Manager where you can select and open projects.
+
+### 3. Run Simulations
+
+```bash
+# Launch the game
 ./scripts/run.sh game --amd
 
-# Asset processing behavior for game launch:
-# - default: auto (seeds host cache from image on first run; falls back to AP if needed)
-# - force:   ./scripts/run.sh game --amd --process-assets
-# - skip:    ./scripts/run.sh game --amd --skip-process-assets
+# In another terminal: Launch ROS2 navigation
+./scripts/run.sh nav --amd
 ```
 
-### Option 2: Native Build
+## Usage Guide
+
+### Helper Scripts
+
+The `scripts/` directory contains three main tools:
+
+#### `build.sh` - Build the Docker Environment
 
 ```bash
-# Prerequisites
-sudo apt install ros-jazzy-desktop ros-jazzy-navigation2 ros-jazzy-slam-toolbox
+# Full build (all stages)
+./scripts/build.sh
 
-# Source ROS2
-source /opt/ros/jazzy/setup.bash
-export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+# Build specific stages
+./scripts/build.sh 1    # Base ROS2 image only
+./scripts/build.sh 2    # + O3DE installation
+./scripts/build.sh 3    # + Project registration  
+./scripts/build.sh 4    # + Full project build
 
-# Install O3DE (Debian package)
-wget https://o3debinaries.org/download/o3de_2510_2.deb
-sudo apt install ./o3de_2510_2.deb
-
-# Clone o3de-extras for ROS2 Gem
-git clone --branch 2510.2 https://github.com/o3de/o3de-extras.git
-o3de register --gem-path o3de-extras/Gems/ROS2
-
-# Register and build this project
-o3de register -pp Project
-cd Project
-cmake -B build/linux -G "Ninja Multi-Config" -DLY_DISABLE_TEST_MODULES=ON
-cmake --build build/linux --config profile --target Playground Editor AssetProcessor
-
-# Build ROS2 workspace
-cd ../ros2_ws
-colcon build --symlink-install
+# Seed host cache (for fast asset iteration)
+./scripts/build.sh seed-cache
 ```
+
+**Stages:**
+- **Stage 0**: ROS2 workspace verification
+- **Stage 1**: Docker base image (ROS2 Jazzy)
+- **Stage 2**: O3DE installation and gem registration
+- **Stage 3**: Project registration
+- **Stage 4**: Full build (project + assets + ROS2 workspace)
+- **Stage 5**: Seed host asset cache
+
+#### `run.sh` - Launch Containers
+
+```bash
+# Interactive shell (starts container if needed, attaches if running)
+./scripts/run.sh shell [--nvidia|--amd]
+
+# O3DE Editor
+./scripts/run.sh editor [--nvidia|--amd]
+
+# Game launcher
+./scripts/run.sh game [--nvidia|--amd] [--process-assets|--skip-process-assets]
+
+# ROS2 navigation stack
+./scripts/run.sh nav [--nvidia|--amd]
+```
+
+**Smart Attach:**
+The `shell` command is smart - if a container is already running (e.g. you launched Editor), it will attach to it instead of failing or starting a new one. This allows you to have multiple terminals working in the same environment.
+
+**Options:**
+- `--nvidia` - Use NVIDIA GPU (auto-detected if nvidia-smi found)
+- `--amd` - Use AMD GPU (auto-detected if /dev/kfd exists)
+- `--audio` - Enable host audio passthrough
+- `--no-mounts` - Disable project bind mounts (use container copy)
+- `--process-assets` - Force asset processing before game launch
+- `--skip-process-assets` - Skip asset processing entirely
+
+**Tip:** You can open multiple shells in the running container:
+
+```bash
+# Terminal 1: Start editor
+./scripts/run.sh editor --amd
+
+# Terminal 2: Open shell in same container
+./scripts/run.sh shell --amd
+# Now you can run ROS2 commands, check logs, etc.
+```
+
+#### `cache-o3de-deb.sh` - Download O3DE Installer
+
+```bash
+# Download and cache O3DE installer (automatic via build.sh)
+./scripts/cache-o3de-deb.sh --version 2510.2
+
+# Force re-download
+./scripts/cache-o3de-deb.sh --version 2510.2 --force
+```
+
+### Development Workflow
+
+The container automatically bind-mounts key directories for fast iteration:
+
+```
+Host                          → Container
+Project/Levels/              → /home/$USER/workspace/Project/Levels/
+Project/Registry/            → /home/$USER/workspace/Project/Registry/
+Project/Assets/              → /home/$USER/workspace/Project/Assets/
+Project/Scripts/             → /home/$USER/workspace/Project/Scripts/
+Project/Cache/               → /home/$USER/workspace/Project/Cache/
+ros2_ws/                     → /home/$USER/workspace/ros2_ws/
+```
+
+**Fast Iteration Loop:**
+
+1. Edit level/asset on host using Editor
+2. Save changes
+3. Relaunch game - **no container rebuild needed!**
+
+```bash
+# Edit in Editor
+./scripts/run.sh editor --amd
+
+# Test changes immediately
+./scripts/run.sh game --amd
+```
+
+### Working with ROS2
+
+```bash
+# Enter shell with ROS2 environment
+./scripts/run.sh shell --amd
+
+# Inside container - ROS2 is pre-configured
+ros2 topic list
+ros2 node list
+
+# Launch navigation
+ros2 launch playground_nav navigation.launch.py
+
+# Monitor topics
+ros2 topic echo /scan
+ros2 topic echo /odom
+
+# View TF tree
+ros2 run tf2_tools view_frames
+```
+
+### Asset Processing Modes
+
+When launching the game, asset processing behavior:
+
+```bash
+# Auto mode (default) - uses cached assets, runs AP if needed
+./scripts/run.sh game --amd
+
+# Force mode - always runs AssetProcessorBatch
+./scripts/run.sh game --amd --process-assets
+
+# Skip mode - never runs AssetProcessorBatch (fastest)
+./scripts/run.sh game --amd --skip-process-assets
+```
+
+**First run**: Use `--process-assets` or let auto mode seed the cache.  
+**Subsequent runs**: Use auto mode or skip for fastest launch.
 
 ## Project Structure
 
 ```
 o3de-playground/
-├── Project/                    # O3DE project (CMake-based)
-│   ├── project.json            # Project config, gem dependencies
-│   ├── CMakeLists.txt          # Build configuration
-│   ├── Gem/                    # Internal gem for project code
-│   ├── Assets/                 # Robot models, prefabs
-│   ├── Levels/                 # Simulation scenes
-│   └── build/                  # Build artifacts (gitignored)
-├── ros2_ws/                    # ROS2 colcon workspace
-│   └── src/
-│       └── playground_nav/     # Nav2 launch package
-├── docker/                     # Docker configuration
-│   ├── Dockerfile              # Multi-stage build
-│   ├── cache/                  # Optional host-side cached O3DE .deb files
-│   └── README.md               # Docker-specific docs
 ├── scripts/
-│   └── cache-o3de-deb.sh       # Download O3DE .deb into docker/cache/
-├── REQUIREMENTS.md             # Detailed requirements document
-└── README.md                   # This file
-```
-
-## Key Features
-
-### ROS2 Integration
-- **ROS2 Jazzy** on Ubuntu 24.04
-- **CycloneDDS** middleware (recommended for Nav2)
-- **Nav2** navigation stack integration
-- **SLAM Toolbox** for mapping
-
-### O3DE Features
-- **O3DE 2510.2** (latest stable)
-- **ROS2 Gem** ≥3.3.0 for native integration
-- **PhysX5** physics simulation
-- **Atom** renderer
-
-### Sensors (Planned)
-- Lidar (2D/3D point clouds)
-- Camera (RGB + Depth)
-- IMU
-- GNSS
-- Odometry
-- Contact sensors
-
-## Usage
-
-### Spawning Robots
-
-```bash
-# Spawn a robot at a named spawn point
-ros2 service call /spawn_entity gazebo_msgs/srv/SpawnEntity \
-  '{name: "robot", xml: "spawn_point_1"}'
-
-# Spawn at specific pose
-ros2 service call /spawn_entity gazebo_msgs/srv/SpawnEntity \
-  '{name: "robot", initial_pose: {position: {x: 0, y: 0, z: 0.2}}}'
-```
-
-### Navigation
-
-```bash
-# Launch full navigation stack
-ros2 launch playground_nav navigation.launch.py
-
-# Use RViz2 "2D Goal Pose" tool to set navigation goals
-```
-
-### Visualization
-
-```bash
-# Check available topics
-ros2 topic list
-
-# View TF tree
-ros2 run tf2_tools view_frames
-
-# Monitor sensor data
-ros2 topic echo /scan
-ros2 topic echo /odom
+│   ├── build.sh              # Main build orchestrator
+│   ├── run.sh                # Container launch helper
+│   └── cache-o3de-deb.sh     # O3DE installer downloader
+├── docker/
+│   ├── Dockerfile            # Multi-stage build definition
+│   ├── cache/                # Cached O3DE .deb files
+│   └── .dockerignore         # Build context exclusions
+├── Project/                  # O3DE project
+│   ├── project.json          # Project config (gems, version)
+│   ├── CMakeLists.txt        # Build configuration
+│   ├── Gem/                  # Project-specific code
+│   ├── Assets/               # Robot models, materials, prefabs
+│   ├── Levels/               # Simulation environments
+│   ├── Registry/             # Asset configurations
+│   └── Cache/                # Asset cache (gitignored)
+├── ros2_ws/                  # ROS2 colcon workspace
+│   └── src/
+│       ├── playground_nav/   # Nav2 launch configuration
+│       └── turtlebot_3/      # TurtleBot3 packages (git submodules)
+└── README.md                 # This file
 ```
 
 ## Configuration
 
-### Nav2 Parameters
-Edit `ros2_ws/src/playground_nav/launch/config/navigation_params.yaml`:
-- Controller frequency
-- Costmap sizes and resolution
-- Planner settings
-- Recovery behaviors
+### ROS2 Workspace
 
-### SLAM Parameters
-Edit `ros2_ws/src/playground_nav/launch/config/slam_params.yaml`:
-- Update rate
-- Resolution
-- Scan matching parameters
+Edit ROS2 package dependencies:
+
+```bash
+# Dependencies auto-installed via rosdep
+vim ros2_ws/src/playground_nav/package.xml
+
+# Rebuild ROS2 workspace
+./scripts/run.sh shell
+colcon build --symlink-install
+```
+
+### Navigation Parameters
+
+```bash
+# Nav2 configuration
+vim ros2_ws/src/playground_nav/launch/config/navigation_params.yaml
+
+# SLAM configuration  
+vim ros2_ws/src/playground_nav/launch/config/slam_params.yaml
+```
+
+### O3DE Project
+
+```bash
+# Add/remove gems
+vim Project/project.json
+
+# Rebuild project
+./scripts/build.sh 4
+```
 
 ## Troubleshooting
 
-### No ROS2 Topics
-```bash
-# Verify ROS2 is sourced
-echo $ROS_DISTRO  # Should show: jazzy
+### Build Issues
 
-# Check RMW implementation
-echo $RMW_IMPLEMENTATION  # Should show: rmw_cyclonedds_cpp
+**Problem**: Docker build fails at rosdep stage
+
+```bash
+# Solution: Missing ROS2 packages unavailable in Jazzy are auto-skipped
+# Check logs for actual errors:
+tail -100 logs/build_*.log
 ```
 
-### GPU Issues in Docker
-```bash
-# NVIDIA: Verify GPU access
-nvidia-smi
+**Problem**: Out of disk space
 
-# Check container toolkit
+```bash
+# Check Docker disk usage
+docker system df
+
+# Clean up old images/containers
+docker system prune -a
+```
+
+### Runtime Issues
+
+**Problem**: GPU not detected in container
+
+```bash
+# NVIDIA: Verify toolkit installation
 docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
 
-# AMD: Verify Vulkan device selection
-vulkaninfo --summary
+# AMD: Check device access
+ls -l /dev/kfd /dev/dri
 ```
 
-### O3DE Build Errors
+**Problem**: X11 display not working
+
 ```bash
-# Ensure ROS2 is sourced BEFORE cmake
-source /opt/ros/jazzy/setup.bash
-cmake -B build/linux ...
+# Allow Docker X11 access
+xhost +local:docker
+
+# Verify DISPLAY is set
+echo $DISPLAY
+```
+
+**Problem**: File permission errors
+
+The container runs as your host user (not root), so file ownership matches automatically. If you see permission errors:
+
+```bash
+# Check ownership
+ls -la Project/
+
+# Fix if needed (should rarely be necessary)
+sudo chown -R $(whoami):$(whoami) Project/
+```
+
+### ROS2 Issues
+
+**Problem**: No topics visible
+
+```bash
+# Verify ROS2 environment
+./scripts/run.sh shell
+echo $ROS_DISTRO          # Should show: jazzy
+echo $RMW_IMPLEMENTATION  # Should show: rmw_cyclonedds_cpp
+
+# Check if workspace is sourced
+env | grep AMENT_PREFIX_PATH
+```
+
+**Problem**: Nav2 won't launch
+
+```bash
+# Verify dependencies installed
+./scripts/run.sh shell
+ros2 pkg list | grep nav2
+```
+
+## Advanced Usage
+
+### Custom Docker Tags
+
+```bash
+# Build with custom tag
+docker build -t o3de-playground:custom-tag -f docker/Dockerfile .
+
+# Run custom tag
+./scripts/run.sh editor --tag custom-tag
+```
+
+### Direct Docker Commands
+
+If you need finer control, bypass helper scripts:
+
+```bash
+# Manual build
+docker build -t o3de-playground:latest -f docker/Dockerfile .
+
+# Manual run with NVIDIA
+docker run -it --rm \
+  --runtime=nvidia --gpus all \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -e DISPLAY=$DISPLAY \
+  o3de-playground:latest bash
+
+# Manual run with AMD  
+docker run -it --rm \
+  --device=/dev/kfd --device=/dev/dri \
+  --group-add video --group-add render \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -e DISPLAY=$DISPLAY \
+  -e XDG_RUNTIME_DIR=/tmp/runtime-root \
+  o3de-playground:latest bash
+```
+
+### Incremental Builds
+
+The Dockerfile uses multi-stage builds for efficient layer caching:
+
+```
+Stage 1: base          → O3DE build tools + ROS2 base
+Stage 2: ros-deps      → rosdep-installed dependencies
+Stage 3: o3de-deps     → O3DE + gems + 3rdParty packages
+Stage 4: o3de-builder  → Project build
+Stage 5: runtime       → Final image with user/GID
+```
+
+**Rebuild strategies:**
+
+```bash
+# Only runtime environment changed (PATH, user config)
+# → Rebuilds stage 5 only (~10 seconds)
+docker build --target runtime ...
+
+# Project code changed (Project/, ros2_ws/)
+# → Rebuilds stages 4-5 only (no dependency re-download)
+docker build ...
+
+# ROS2 workspace dependencies changed (package.xml)
+# → Rebuilds stages 2-5 (rosdep re-runs)
+docker build ...
 ```
 
 ## References
 
 - [O3DE Documentation](https://docs.o3de.org/)
-- [O3DE ROS2 Gem](https://docs.o3de.org/docs/user-guide/gems/reference/robotics/ros2/)
+- [O3DE ROS2 Gem Guide](https://docs.o3de.org/docs/user-guide/gems/reference/robotics/ros2/)
 - [Nav2 Documentation](https://navigation.ros.org/)
-- [ROSConDemo](https://github.com/o3de/ROSConDemo) - Reference project
-- [RobotVacuumSample](https://github.com/o3de/RobotVacuumSample) - Reference project
+- [ROS2 Jazzy Documentation](https://docs.ros.org/en/jazzy/)
+- [ROSConDemo](https://github.com/o3de/ROSConDemo) - Reference O3DE+ROS2 project
+- [RobotVacuumSample](https://github.com/o3de/RobotVacuumSample) - Example navigation implementation
+
+## Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Test your changes with `./scripts/build.sh`
+4. Submit a pull request
 
 ## License
 
 Apache-2.0
+
+---
+
+**Need help?** Open an issue with:
+- Build logs from `logs/build_*.log`
+- Output of `docker --version` and `nvidia-smi` or `rocm-smi`
+- Your GPU model and driver version

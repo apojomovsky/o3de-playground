@@ -15,10 +15,11 @@ usage() {
 Usage: $(basename "$0") [command] [options]
 
 Commands:
-  shell     Interactive bash shell (default)
+  shell     Interactive bash shell (attaches if running)
   editor    Launch O3DE Editor
   game      Launch GameLauncher
   nav       Launch navigation stack
+  attach    Attach to running container (alias for shell)
 
 Options:
   --nvidia  Use NVIDIA GPU (default if nvidia-smi found)
@@ -47,67 +48,6 @@ detect_gpu() {
     fi
 }
 
-run_nvidia() {
-    local cmd="$1"
-    local audio_opts=()
-    if [[ "$AUDIO_MODE" == "host" ]]; then
-        if [[ -e /dev/snd ]]; then
-            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
-        else
-            echo -e "${YELLOW}--audio requested but /dev/snd not found; using dummy audio backend.${NC}"
-            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
-        fi
-    else
-        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
-    fi
-    xhost +local:docker 2>/dev/null || true
-    docker run -it --rm \
-        --init \
-        --runtime=nvidia --gpus all \
-        "${MOUNT_OPTS[@]}" \
-        -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-        -e DISPLAY="$DISPLAY" \
-        -e NVIDIA_VISIBLE_DEVICES=all \
-        -e NVIDIA_DRIVER_CAPABILITIES=all \
-        "${audio_opts[@]}" \
-        --name o3de-playground-run \
-        "${IMAGE_NAME}:${TAG}" \
-        bash -lc "$cmd"
-}
-
-run_amd() {
-    local cmd="$1"
-    local vk_icd="/usr/share/vulkan/icd.d/radeon_icd.json"
-    local audio_opts=()
-    if [[ "$AUDIO_MODE" == "host" ]]; then
-        if [[ -e /dev/snd ]]; then
-            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
-        else
-            echo -e "${YELLOW}--audio requested but /dev/snd not found; using dummy audio backend.${NC}"
-            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
-        fi
-    else
-        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
-    fi
-    xhost +local:docker 2>/dev/null || true
-    docker run -it --rm \
-        --init \
-        --device=/dev/kfd --device=/dev/dri \
-        "${MOUNT_OPTS[@]}" \
-        --group-add video \
-        --group-add render \
-        --security-opt seccomp=unconfined \
-        -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-        -e DISPLAY="$DISPLAY" \
-        -e XDG_RUNTIME_DIR=/tmp/runtime-root \
-        -e QT_QPA_PLATFORM=xcb \
-        -e VK_ICD_FILENAMES="$vk_icd" \
-        "${audio_opts[@]}" \
-        --name o3de-playground-run \
-        "${IMAGE_NAME}:${TAG}" \
-        bash -lc "$cmd"
-}
-
 TAG="latest"
 GPU=""
 COMMAND="shell"
@@ -116,6 +56,8 @@ O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
 USE_MOUNTS=1
 PROCESS_ASSETS_MODE="auto"
 MOUNT_OPTS=()
+CONTAINER_USER="$(whoami)"
+CONTAINER_WORKSPACE="/home/${CONTAINER_USER}/workspace"
 
 seed_host_cache_from_image() {
     if [[ "$USE_MOUNTS" != "1" ]] || [[ "$COMMAND" != "game" ]] || [[ "$PROCESS_ASSETS_MODE" != "auto" ]]; then
@@ -136,7 +78,7 @@ seed_host_cache_from_image() {
     local container_id
     container_id=$(docker create "${IMAGE_NAME}:${TAG}" /bin/true)
 
-    if docker cp "$container_id:/data/workspace/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1; then
+    if docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1; then
         touch "$stamp_file"
         echo "[INFO] Host cache seeded from image. Skipping initial AssetProcessorBatch."
     else
@@ -155,29 +97,29 @@ build_mount_opts() {
     local host_ros2="$PROJECT_ROOT/ros2_ws"
 
     if [[ -f "$host_project/project.json" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/project.json:/data/workspace/Project/project.json:rw")
+        MOUNT_OPTS+=(-v "$host_project/project.json:${CONTAINER_WORKSPACE}/Project/project.json:rw")
     fi
     if [[ -d "$host_project/Levels" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Levels:/data/workspace/Project/Levels:rw")
+        MOUNT_OPTS+=(-v "$host_project/Levels:${CONTAINER_WORKSPACE}/Project/Levels:rw")
     fi
     if [[ -d "$host_project/Registry" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Registry:/data/workspace/Project/Registry:rw")
+        MOUNT_OPTS+=(-v "$host_project/Registry:${CONTAINER_WORKSPACE}/Project/Registry:rw")
     fi
     if [[ -d "$host_project/Assets" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Assets:/data/workspace/Project/Assets:rw")
+        MOUNT_OPTS+=(-v "$host_project/Assets:${CONTAINER_WORKSPACE}/Project/Assets:rw")
     fi
     if [[ -d "$host_project/Scripts" ]]; then
-        MOUNT_OPTS+=(-v "$host_project/Scripts:/data/workspace/Project/Scripts:rw")
+        MOUNT_OPTS+=(-v "$host_project/Scripts:${CONTAINER_WORKSPACE}/Project/Scripts:rw")
     fi
     mkdir -p "$host_project/Cache"
-    MOUNT_OPTS+=(-v "$host_project/Cache:/data/workspace/Project/Cache:rw")
+    MOUNT_OPTS+=(-v "$host_project/Cache:${CONTAINER_WORKSPACE}/Project/Cache:rw")
     mkdir -p "$host_ros2/src"
-    MOUNT_OPTS+=(-v "$host_ros2/src:/data/workspace/ros2_ws/src:rw")
+    MOUNT_OPTS+=(-v "$host_ros2/src:${CONTAINER_WORKSPACE}/ros2_ws/src:rw")
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        shell|editor|game|nav)
+        shell|editor|game|nav|attach)
             COMMAND="$1"
             shift
             ;;
@@ -234,44 +176,148 @@ fi
 build_mount_opts
 seed_host_cache_from_image
 
+CONTAINER_NAME="o3de-playground-run"
+
+ensure_container_running() {
+    if docker container inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
+        if [[ "$(docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}")" == "true" ]]; then
+            return 0
+        else
+            echo -e "${YELLOW}Starting stopped container: ${CONTAINER_NAME}${NC}"
+            docker start "${CONTAINER_NAME}" >/dev/null
+            return 0
+        fi
+    fi
+    
+    echo -e "${GREEN}Creating new container: ${CONTAINER_NAME}${NC}"
+    
+    case "$GPU" in
+        nvidia)
+            start_nvidia_container
+            ;;
+        amd)
+            start_amd_container
+            ;;
+        *)
+            echo -e "${RED}GPU not specified${NC}"
+            exit 1
+            ;;
+    esac
+}
+
+start_nvidia_container() {
+    local audio_opts=()
+    if [[ "$AUDIO_MODE" == "host" ]]; then
+        if [[ -e /dev/snd ]]; then
+            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
+        else
+            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+        fi
+    else
+        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+    fi
+    
+    xhost +local:docker 2>/dev/null || true
+    local xauth_opts=()
+    if [[ -f "$HOME/.Xauthority" ]]; then
+        xauth_opts+=(-v "$HOME/.Xauthority:/home/$(whoami)/.Xauthority:ro" -e XAUTHORITY="/home/$(whoami)/.Xauthority")
+    fi
+    
+    docker run -d \
+        --init \
+        --runtime=nvidia --gpus all \
+        "${MOUNT_OPTS[@]}" \
+        -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+        "${xauth_opts[@]}" \
+        -e DISPLAY="$DISPLAY" \
+        -e NVIDIA_VISIBLE_DEVICES=all \
+        -e NVIDIA_DRIVER_CAPABILITIES=all \
+        "${audio_opts[@]}" \
+        --name "${CONTAINER_NAME}" \
+        "${IMAGE_NAME}:${TAG}" \
+        sleep infinity >/dev/null
+}
+
+start_amd_container() {
+    local vk_icd="/usr/share/vulkan/icd.d/radeon_icd.json"
+    local audio_opts=()
+    if [[ "$AUDIO_MODE" == "host" ]]; then
+        if [[ -e /dev/snd ]]; then
+            audio_opts+=(--device=/dev/snd:/dev/snd --group-add audio -e JACK_NO_START_SERVER=1)
+        else
+            audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+        fi
+    else
+        audio_opts+=(-e SDL_AUDIODRIVER=dummy -e AUDIODEV=null -e JACK_NO_START_SERVER=1)
+    fi
+    
+    xhost +local:docker 2>/dev/null || true
+    local xauth_opts=()
+    if [[ -f "$HOME/.Xauthority" ]]; then
+        xauth_opts+=(-v "$HOME/.Xauthority:/home/$(whoami)/.Xauthority:ro" -e XAUTHORITY="/home/$(whoami)/.Xauthority")
+    fi
+    
+    docker run -d \
+        --init \
+        --device=/dev/kfd --device=/dev/dri \
+        "${MOUNT_OPTS[@]}" \
+        --group-add video \
+        --group-add render \
+        --security-opt seccomp=unconfined \
+        -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+        "${xauth_opts[@]}" \
+        -e DISPLAY="$DISPLAY" \
+        -e XDG_RUNTIME_DIR=/tmp/runtime-root \
+        -e QT_QPA_PLATFORM=xcb \
+        -e VK_ICD_FILENAMES="$vk_icd" \
+        "${audio_opts[@]}" \
+        --name "${CONTAINER_NAME}" \
+        "${IMAGE_NAME}:${TAG}" \
+        sleep infinity >/dev/null
+}
+
 case "$COMMAND" in
-    shell)
-        CMD="exec /bin/bash"
+    attach|shell)
+        ensure_container_running
+        if [[ "$COMMAND" == "shell" ]]; then
+            echo -e "${GREEN}Opening shell in container: ${CONTAINER_NAME}${NC}"
+        else
+            echo -e "${GREEN}Attaching to container: ${CONTAINER_NAME}${NC}"
+        fi
+        exec docker exec -it "${CONTAINER_NAME}" /bin/bash
         ;;
     editor)
-        EDITOR_LOG_DIR="/data/workspace/Project/Cache/linux/log"
-        CMD="source /opt/ros/jazzy/setup.bash; if [[ -f /data/workspace/ros2_ws/install/setup.bash ]]; then source /data/workspace/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; mkdir -p $EDITOR_LOG_DIR && /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path /data/workspace/Project --project-log-path $EDITOR_LOG_DIR"
+        ensure_container_running
+        CMD="source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; echo \"AMENT_PREFIX_PATH=\$AMENT_PREFIX_PATH\"; /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor --project-path ${CONTAINER_WORKSPACE}/Project"
+        echo -e "${GREEN}Running: $CMD${NC}"
+        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
     game)
+        ensure_container_running
         AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"
-        GAME_BIN="/data/workspace/Project/build/linux/bin/profile/Playground.GameLauncher"
-        STAMP_PATH="/data/workspace/Project/Cache/linux/.ap_autorun.stamp"
+        GAME_BIN="${CONTAINER_WORKSPACE}/Project/build/linux/bin/profile/Playground.GameLauncher"
+        STAMP_PATH="${CONTAINER_WORKSPACE}/Project/Cache/linux/.ap_autorun.stamp"
         if [[ "$PROCESS_ASSETS_MODE" == "always" ]]; then
-            CMD="$AP_BIN --project-path /data/workspace/Project && $GAME_BIN --project-path /data/workspace/Project"
+            CMD="$AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
         elif [[ "$PROCESS_ASSETS_MODE" == "never" ]]; then
-            CMD="$GAME_BIN --project-path /data/workspace/Project"
+            CMD="$GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
         else
             if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/Project/Cache/linux/.ap_autorun.stamp" ]]; then
-                CMD="echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path /data/workspace/Project"
+                CMD="echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
             else
-                CMD="mkdir -p /data/workspace/Project/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path /data/workspace/Project && touch $STAMP_PATH; $GAME_BIN --project-path /data/workspace/Project"
+                CMD="mkdir -p ${CONTAINER_WORKSPACE}/Project/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path ${CONTAINER_WORKSPACE}/Project && touch $STAMP_PATH; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/Project"
             fi
         fi
+        echo -e "${GREEN}Running: $CMD${NC}"
+        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
     nav)
-        CMD="source /opt/ros/jazzy/setup.bash && source /data/workspace/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
+        ensure_container_running
+        CMD="source /opt/ros/jazzy/setup.bash && source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash && ros2 launch playground_nav navigation.launch.py"
+        echo -e "${GREEN}Running: $CMD${NC}"
+        exec docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         ;;
 esac
-
-echo -e "${GREEN}Running: $CMD${NC}"
-echo "GPU mode: $GPU"
-echo "Audio mode: $AUDIO_MODE"
-echo "Asset processing mode: $PROCESS_ASSETS_MODE"
-if [[ "$USE_MOUNTS" == "1" ]]; then
-    echo "Host mounts: enabled"
-else
-    echo "Host mounts: disabled"
-fi
 
 case "$GPU" in
     nvidia)
