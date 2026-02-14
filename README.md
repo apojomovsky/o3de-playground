@@ -153,12 +153,12 @@ The container automatically bind-mounts key directories for fast iteration:
 
 ```
 Host                          → Container
-Project/Levels/              → /home/$USER/workspace/Project/Levels/
-Project/Registry/            → /home/$USER/workspace/Project/Registry/
-Project/Assets/              → /home/$USER/workspace/Project/Assets/
-Project/Scripts/             → /home/$USER/workspace/Project/Scripts/
-Project/Cache/               → /home/$USER/workspace/Project/Cache/
-ros2_ws/                     → /home/$USER/workspace/ros2_ws/
+Project/Levels/              → /home/o3de/workspace/Project/Levels/
+Project/Registry/            → /home/o3de/workspace/Project/Registry/
+Project/Assets/              → /home/o3de/workspace/Project/Assets/
+Project/Scripts/             → /home/o3de/workspace/Project/Scripts/
+Project/Cache/               → /home/o3de/workspace/Project/Cache/
+ros2_ws/                     → /home/o3de/workspace/ros2_ws/
 ```
 
 **Fast Iteration Loop:**

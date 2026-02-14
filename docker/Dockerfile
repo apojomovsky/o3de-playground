@@ -6,10 +6,15 @@
 
 ARG ROS_VERSION=jazzy
 ARG UBUNTU_VERSION=noble
+ARG USERNAME=o3de
+ARG USER_ID=1000
+ARG GROUP_ID=1000
 
 FROM ros:${ROS_VERSION}-ros-base-${UBUNTU_VERSION} AS base
 
-ARG USERNAME=o3de
+ARG USERNAME
+ARG USER_ID
+ARG GROUP_ID
 ENV WORKSPACE=/home/${USERNAME}/workspace
 ENV LANG=en_US.UTF-8
 
@@ -23,7 +28,7 @@ RUN apt-get update \
     && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install O3DE build dependencies and rosdep
+# Install O3DE build dependencies, rosdep, and sudo
 RUN apt-get update \
     && apt-get install -y \
             binutils \
@@ -49,11 +54,21 @@ RUN apt-get update \
             python3-pip \
             python3-rosdep \
             software-properties-common \
+            sudo \
             vulkan-tools \
             ros-${ROS_DISTRO}-cyclonedds \
             ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --break-system-packages python-statemachine
+
+# Create user with passwordless sudo
+# Check if UID exists, if so modify it; otherwise create new user
+RUN groupadd -f -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
+    && (id -u ${USER_ID} >/dev/null 2>&1 && usermod -l ${USERNAME} -g ${GROUP_ID} -d /home/${USERNAME} $(id -nu ${USER_ID}) 2>/dev/null) || useradd -u ${USER_ID} -g ${GROUP_ID} -d /home/${USERNAME} -m -s /bin/bash ${USERNAME} 2>/dev/null || true \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME} \
+    && mkdir -p $WORKSPACE \
+    && chown -R ${USER_ID}:${GROUP_ID} /home/${USERNAME}
 
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
@@ -62,25 +77,37 @@ ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 # ============================================================================
 FROM base AS ros-deps
 
+ARG USERNAME
+ARG USER_ID
+ARG GROUP_ID
+
 # Copy only ros2_ws to install dependencies
-COPY ros2_ws/ $WORKSPACE/ros2_ws/
+COPY --chown=${USER_ID}:${GROUP_ID} ros2_ws/ $WORKSPACE/ros2_ws/
+
+USER ${USERNAME}
 
 # Initialize rosdep and install all ROS2 workspace dependencies
-RUN rosdep init || true \
+# Note: rosdep init is likely already done in base image or needs sudo.
+# We skip init if file exists.
+RUN (ls /etc/ros/rosdep/sources.list.d/20-default.list >/dev/null 2>&1 || sudo rosdep init) \
     && rosdep update \
     && . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && apt-get update \
+    && sudo apt-get update \
     && rosdep install --from-paths $WORKSPACE/ros2_ws/src \
                       --ignore-src \
                       --rosdistro ${ROS_DISTRO} \
                       --skip-keys="gazebo_ros gazebo_ros_pkgs hls_lfcd_lds_driver" \
                       -y \
-    && rm -rf /var/lib/apt/lists/*
+    && sudo rm -rf /var/lib/apt/lists/*
 
 # ============================================================================
 # Stage 3: O3DE Dependencies Cache
 # ============================================================================
 FROM ros-deps AS o3de-deps
+
+ARG USERNAME
+ARG USER_ID
+ARG GROUP_ID
 
 # O3DE Variables
 ARG O3DE_VERSION=2510.2
@@ -94,7 +121,7 @@ ARG O3DE_EXTRAS_REPO=https://github.com/o3de/o3de-extras.git
 ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
 
 # Copy optional host-side O3DE .deb cache
-COPY docker/cache/ /tmp/o3de-deb-cache/
+COPY --chown=${USER_ID}:${GROUP_ID} docker/cache/ /tmp/o3de-deb-cache/
 
 # Install O3DE from local cache when present, otherwise download from o3debinaries.org
 RUN set -eux; \
@@ -106,6 +133,7 @@ RUN set -eux; \
     else \
         deb_suffix="$(echo "$O3DE_VERSION" | tr '.' '_')"; \
     fi; \
+    unset IFS; \
     deb_file="o3de_${deb_suffix}.deb"; \
     local_deb="/tmp/o3de-deb-cache/${deb_file}"; \
     local_sha="${local_deb}.sha256"; \
@@ -130,10 +158,11 @@ RUN set -eux; \
     if [ -n "$O3DE_DEB_SHA256" ]; then \
         echo "$O3DE_DEB_SHA256  $selected_deb" | sha256sum -c -; \
     fi; \
-    apt-get update; \
-    dpkg -i "$selected_deb" || apt-get install -f -y; \
-    rm -f "$selected_deb" "$selected_sha"; \
-    rm -rf /var/lib/apt/lists/*
+    sudo apt-get update; \
+    sudo dpkg -i "$selected_deb" || sudo apt-get install -f -y; \
+    sudo rm -f "$selected_deb" "$selected_sha"; \
+    sudo rm -rf /var/lib/apt/lists/*; \
+    sudo chown -R ${USER_ID}:${GROUP_ID} /opt/O3DE/${O3DE_INSTALL_VERSION}
 
 # Clone O3DE extras
 RUN git clone --single-branch -b ${O3DE_EXTRAS_VERSION} $O3DE_EXTRAS_REPO $O3DE_EXTRAS_ROOT \
@@ -166,26 +195,13 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
 # ============================================================================
 FROM o3de-deps AS o3de-builder
 
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-ARG USERNAME=o3de
+ARG USERNAME
+ARG USER_ID
+ARG GROUP_ID
 ARG O3DE_INSTALL_VERSION=25.10.2
 
 # Project Variables
 ENV PROJECT_ROOT=$WORKSPACE/Project
-
-# Create user BEFORE building (so everything has correct ownership from start)
-RUN groupadd -f -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
-    && (id -u ${USER_ID} >/dev/null 2>&1 && usermod -l ${USERNAME} -g ${GROUP_ID} $(id -nu ${USER_ID}) 2>/dev/null) || useradd -u ${USER_ID} -g ${GROUP_ID} -d /home/${USERNAME} -s /bin/bash ${USERNAME} 2>/dev/null || true \
-    && mkdir -p /home/${USERNAME} \
-    # Seed user cache from root cache (created in o3de-deps) to avoid re-downloading
-    && cp -r /root/.o3de /home/${USERNAME}/.o3de \
-    && find /home/${USERNAME}/.o3de -type f -not -path "*/packages/*" -exec sed -i "s|/root/.o3de|/home/${USERNAME}/.o3de|g" {} + 2>/dev/null || true \
-    && chown -R ${USER_ID}:${GROUP_ID} /home/${USERNAME} \
-    && chown -R ${USER_ID}:${GROUP_ID} /opt/O3DE/${O3DE_INSTALL_VERSION} \
-    && chown -R ${USER_ID}:${GROUP_ID} $WORKSPACE \
-    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
-    && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 # Switch to non-root user for all build operations
 USER ${USERNAME}
@@ -231,24 +247,16 @@ FROM ros-deps AS runtime
 
 ARG O3DE_VERSION=2510.2
 ARG O3DE_INSTALL_VERSION=25.10.2
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-ARG USERNAME=o3de
+ARG USERNAME
+ARG USER_ID
+ARG GROUP_ID
 
 # Copy built artifacts from builder (built as user, so paths are already correct)
-COPY --from=o3de-builder /opt/O3DE/${O3DE_INSTALL_VERSION} /opt/O3DE/${O3DE_INSTALL_VERSION}
-COPY --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
-COPY --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
-COPY --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
-COPY --from=o3de-builder /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
-
-# Create user (should match builder user)
-RUN groupadd -f -g ${GROUP_ID} ${USERNAME} 2>/dev/null || true \
-    && (id -u ${USER_ID} >/dev/null 2>&1 && usermod -l ${USERNAME} -g ${GROUP_ID} $(id -nu ${USER_ID}) 2>/dev/null) || useradd -u ${USER_ID} -g ${GROUP_ID} -d /home/${USERNAME} -s /bin/bash ${USERNAME} 2>/dev/null || true \
-    && chown -R ${USER_ID}:${GROUP_ID} /home/${USERNAME} \
-    && chown -R ${USER_ID}:${GROUP_ID} $WORKSPACE \
-    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
-    && chmod 0440 /etc/sudoers.d/${USERNAME}
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder /opt/O3DE/${O3DE_INSTALL_VERSION} /opt/O3DE/${O3DE_INSTALL_VERSION}
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
 
 # Set environment variables
 ENV O3DE_ROOT=/opt/O3DE/${O3DE_INSTALL_VERSION}
@@ -259,25 +267,24 @@ ENV HOME=/home/${USERNAME}
 ENV PATH="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:${PATH}"
 
 # Setup ROS2 environment and add O3DE binaries to PATH
-RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /etc/bash.bashrc \
-    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /etc/bash.bashrc \
-    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" >> /etc/bash.bashrc \
-    && echo "alias sudo='sudo '" >> /etc/bash.bashrc \
-    && printf "pcm.!default {\n    type null\n}\nctl.!default {\n    type null\n}\n" > /etc/asound.conf \
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" | sudo tee -a /etc/bash.bashrc \
+    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" | sudo tee -a /etc/bash.bashrc \
+    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" | sudo tee -a /etc/bash.bashrc \
+    && echo "alias sudo='sudo '" | sudo tee -a /etc/bash.bashrc \
+    && printf "pcm.!default {\n    type null\n}\nctl.!default {\n    type null\n}\n" | sudo tee /etc/asound.conf \
     && echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /home/${USERNAME}/.bashrc \
     && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /home/${USERNAME}/.bashrc \
-    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" >> /home/${USERNAME}/.bashrc \
-    && chown ${USER_ID}:${GROUP_ID} /home/${USERNAME}/.bashrc
+    && echo "export PATH=\"/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:\$PATH\"" >> /home/${USERNAME}/.bashrc
 
 # Create entrypoint script
-RUN echo '#!/bin/bash' > /entrypoint.sh \
-    && echo 'set -e' >> /entrypoint.sh \
-    && echo 'source /opt/ros/${ROS_DISTRO}/setup.bash' >> /entrypoint.sh \
-    && echo 'if [ -d "$WORKSPACE/ros2_ws/install" ]; then' >> /entrypoint.sh \
-    && echo '  source $WORKSPACE/ros2_ws/install/setup.bash' >> /entrypoint.sh \
-    && echo 'fi' >> /entrypoint.sh \
-    && echo 'exec "$@"' >> /entrypoint.sh \
-    && chmod +x /entrypoint.sh
+RUN sudo sh -c "echo '#!/bin/bash' > /entrypoint.sh" \
+    && sudo sh -c "echo 'set -e' >> /entrypoint.sh" \
+    && sudo sh -c "echo 'source /opt/ros/${ROS_DISTRO}/setup.bash' >> /entrypoint.sh" \
+    && sudo sh -c "echo 'if [ -d \"\$WORKSPACE/ros2_ws/install\" ]; then' >> /entrypoint.sh" \
+    && sudo sh -c "echo '  source \$WORKSPACE/ros2_ws/install/setup.bash' >> /entrypoint.sh" \
+    && sudo sh -c "echo 'fi' >> /entrypoint.sh" \
+    && sudo sh -c "echo 'exec \"\$@\"' >> /entrypoint.sh" \
+    && sudo chmod +x /entrypoint.sh
 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}
