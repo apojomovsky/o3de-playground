@@ -63,37 +63,37 @@ MOUNT_OPTS=()
 CONTAINER_USER="o3de"
 CONTAINER_WORKSPACE="/home/${CONTAINER_USER}/workspace"
 
-seed_host_cache_from_image() {
-    if [[ "$USE_MOUNTS" != "1" ]] || [[ "$COMMAND" != "game" ]] || [[ "$PROCESS_ASSETS_MODE" != "auto" ]]; then
+seed_host_project_data() {
+    if [[ "$USE_MOUNTS" != "1" ]]; then
         return
     fi
 
     if [[ "$PROJECT_NAME" != "Project" ]]; then
-        echo "[INFO] Custom project selected ($PROJECT_NAME). Skipping cache seeding from default 'Project' image."
         return
     fi
 
     local host_cache_linux="$PROJECT_ROOT/$PROJECT_NAME/Cache/linux"
+    local host_build="$PROJECT_ROOT/$PROJECT_NAME/build"
     local stamp_file="$host_cache_linux/.ap_autorun.stamp"
 
-    mkdir -p "$host_cache_linux"
-
+    # If we have the stamp, we assume everything is seeded
     if [[ -f "$stamp_file" ]]; then
         return
     fi
 
-    echo "[INFO] First run: seeding host cache from image..."
+    mkdir -p "$host_cache_linux"
+    mkdir -p "$host_build"
+
+    echo "[INFO] First run: seeding host cache and build artifacts from image..."
 
     local container_id
     container_id=$(docker create "${IMAGE_NAME}:${TAG}" /bin/true)
 
-    if docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1; then
-        touch "$stamp_file"
-        echo "[INFO] Host cache seeded from image. Skipping initial AssetProcessorBatch."
-    else
-        echo "[WARN] Could not seed host cache from image. Falling back to AssetProcessorBatch."
-    fi
-
+    docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1 || echo "[WARN] Failed to copy Cache"
+    docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/build/." "$host_build/" >/dev/null 2>&1 || echo "[WARN] Failed to copy build artifacts"
+    
+    touch "$stamp_file"
+    
     docker rm -f "$container_id" >/dev/null 2>&1 || true
 }
 
@@ -109,30 +109,9 @@ build_mount_opts() {
     mkdir -p "$host_ros2/src"
     MOUNT_OPTS+=(-v "$host_ros2/src:${CONTAINER_WORKSPACE}/ros2_ws/src:rw")
 
-    if [[ "$PROJECT_NAME" != "Project" ]]; then
-        # For custom projects, mount the entire directory to allow creation/persistence
-        mkdir -p "$host_project"
-        MOUNT_OPTS+=(-v "$host_project:${CONTAINER_WORKSPACE}/$PROJECT_NAME:rw")
-    else
-        # For default 'Project', use granular mounts to preserve image build artifacts
-        if [[ -f "$host_project/project.json" ]]; then
-            MOUNT_OPTS+=(-v "$host_project/project.json:${CONTAINER_WORKSPACE}/$PROJECT_NAME/project.json:rw")
-        fi
-        if [[ -d "$host_project/Levels" ]]; then
-            MOUNT_OPTS+=(-v "$host_project/Levels:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Levels:rw")
-        fi
-        if [[ -d "$host_project/Registry" ]]; then
-            MOUNT_OPTS+=(-v "$host_project/Registry:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Registry:rw")
-        fi
-        if [[ -d "$host_project/Assets" ]]; then
-            MOUNT_OPTS+=(-v "$host_project/Assets:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Assets:rw")
-        fi
-        if [[ -d "$host_project/Scripts" ]]; then
-            MOUNT_OPTS+=(-v "$host_project/Scripts:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Scripts:rw")
-        fi
-        mkdir -p "$host_project/Cache"
-        MOUNT_OPTS+=(-v "$host_project/Cache:${CONTAINER_WORKSPACE}/$PROJECT_NAME/Cache:rw")
-    fi
+    # Mount project directory (root) to allow full access/persistence including project.json
+    mkdir -p "$host_project"
+    MOUNT_OPTS+=(-v "$host_project:${CONTAINER_WORKSPACE}/$PROJECT_NAME:rw")
 }
 
 while [[ $# -gt 0 ]]; do
