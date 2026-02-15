@@ -309,8 +309,8 @@ case "$COMMAND" in
         EDITOR_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor"
         O3DE_CLI="/opt/O3DE/${O3DE_INSTALL_VERSION}/scripts/o3de.sh"
         
-        # Create project on first run, register on subsequent runs
-        SETUP_CMD="if [[ ! -f ${PROJECT_PATH}/project.json ]]; then echo '[INFO] Creating project ${PROJECT_NAME}...'; ${O3DE_CLI} create-project --project-path ${PROJECT_PATH}; else ${O3DE_CLI} register -pp ${PROJECT_PATH} --force; fi"
+        # Create project on first run (using ROS2 template), register on subsequent runs
+        SETUP_CMD="if [[ ! -f ${PROJECT_PATH}/project.json ]]; then echo '[INFO] Creating project ${PROJECT_NAME} from Ros2ProjectTemplate...'; ${O3DE_CLI} create-project --project-path ${PROJECT_PATH} --template-name Ros2ProjectTemplate; else ${O3DE_CLI} register -pp ${PROJECT_PATH} --force; fi"
         
         CMD="${PRE_CMD}${SETUP_CMD}; source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; ${EDITOR_BIN} --project-path ${PROJECT_PATH}"
         echo -e "${GREEN}Running: $CMD${NC}"
