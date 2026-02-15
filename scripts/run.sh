@@ -306,16 +306,13 @@ case "$COMMAND" in
         
         PROJECT_PATH="${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
         
-        # If project exists, register and open it directly.
-        # Otherwise open Project Manager for creation (defaults to projects/).
         EDITOR_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor"
-        REGISTER_CMD="if [[ -f ${PROJECT_PATH}/project.json ]]; then /opt/O3DE/${O3DE_INSTALL_VERSION}/scripts/o3de.sh register -pp ${PROJECT_PATH} --force; fi"
-        EDITOR_CMD="${EDITOR_BIN}"
-        if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/projects/$PROJECT_NAME/project.json" ]]; then
-            EDITOR_CMD="${EDITOR_BIN} --project-path ${PROJECT_PATH}"
-        fi
+        O3DE_CLI="/opt/O3DE/${O3DE_INSTALL_VERSION}/scripts/o3de.sh"
         
-        CMD="${PRE_CMD}${REGISTER_CMD}; source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; ${EDITOR_CMD}"
+        # Create project on first run, register on subsequent runs
+        SETUP_CMD="if [[ ! -f ${PROJECT_PATH}/project.json ]]; then echo '[INFO] Creating project ${PROJECT_NAME}...'; ${O3DE_CLI} create-project --project-path ${PROJECT_PATH}; else ${O3DE_CLI} register -pp ${PROJECT_PATH} --force; fi"
+        
+        CMD="${PRE_CMD}${SETUP_CMD}; source /opt/ros/jazzy/setup.bash; if [[ -f ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash ]]; then source ${CONTAINER_WORKSPACE}/ros2_ws/install/setup.bash; fi; ${EDITOR_BIN} --project-path ${PROJECT_PATH}"
         echo -e "${GREEN}Running: $CMD${NC}"
         docker exec -it "${CONTAINER_NAME}" bash -lc "$CMD"
         cleanup_if_no_sessions
