@@ -196,43 +196,18 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && rm -rf /tmp/cache-warmup
 
 # ============================================================================
-# Stage 4: O3DE Project Build (as non-root user)
+# Stage 4: ROS2 Workspace Build
 # ============================================================================
-FROM o3de-deps AS o3de-builder
+FROM o3de-deps AS ros2-builder
 
 ARG USERNAME
 ARG USER_ID
 ARG GROUP_ID
-ARG O3DE_INSTALL_VERSION=25.10.2
 
-# Project Variables
-ENV PROJECT_ROOT=$WORKSPACE/Project
-
-# Switch to non-root user for all build operations
 USER ${USERNAME}
 ENV HOME=/home/${USERNAME}
 
-# Copy project files with correct ownership
-COPY --chown=${USER_ID}:${GROUP_ID} Project/ $PROJECT_ROOT/
 COPY --chown=${USER_ID}:${GROUP_ID} ros2_ws/ $WORKSPACE/ros2_ws/
-
-# Register project (creates ~/.o3de with correct paths from the start)
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && $O3DE_ROOT/python/get_python.sh \
-    && $O3DE_ROOT/scripts/o3de.sh register -pp $PROJECT_ROOT --force
-
-# Configure O3DE project (now uses cached 3rdParty packages)
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && cmake -B $PROJECT_ROOT/build/linux -G "Ninja Multi-Config" \
-                            -S $PROJECT_ROOT \
-                            -DLY_DISABLE_TEST_MODULES=ON \
-                            -DLY_STRIP_DEBUG_SYMBOLS=ON \
-                            -DAZ_USE_PHYSX5=ON
-
-# Build O3DE project (separate layer - cmake configure cached above)
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && cmake --build $PROJECT_ROOT/build/linux --config profile \
-             --target Playground.GameLauncher Editor Playground.Assets
 
 # Build colcon workspace
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
@@ -250,17 +225,17 @@ ARG USERNAME
 ARG USER_ID
 ARG GROUP_ID
 
-# Copy built artifacts from builder (built as user, so paths are already correct)
-COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder /opt/O3DE/${O3DE_INSTALL_VERSION} /opt/O3DE/${O3DE_INSTALL_VERSION}
-COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
-COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/Project $WORKSPACE/Project
-COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
-COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-builder /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
+# Copy built artifacts from builder stages
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-deps /opt/O3DE/${O3DE_INSTALL_VERSION} /opt/O3DE/${O3DE_INSTALL_VERSION}
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-deps $WORKSPACE/o3de-extras $WORKSPACE/o3de-extras
+COPY --chown=${USER_ID}:${GROUP_ID} --from=ros2-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
+COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-deps /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
+
+RUN mkdir -p $WORKSPACE/projects
 
 # Set environment variables
 ENV O3DE_ROOT=/opt/O3DE/${O3DE_INSTALL_VERSION}
 ENV O3DE_EXTRAS_ROOT=$WORKSPACE/o3de-extras
-ENV PROJECT_ROOT=$WORKSPACE/Project
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ENV HOME=/home/${USERNAME}
 ENV PATH="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default:${PATH}"

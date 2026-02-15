@@ -11,15 +11,15 @@
 # Stages:
 #   0 - ROS2 workspace only (colcon build)
 #   1 - Docker base image (ROS2 Jazzy)
-#   2 - Docker with O3DE installed
-#   3 - Project registration
-#   4 - Full build (project + assets)
-#   5 - Seed host asset cache from built image
+#   2 - Docker with O3DE + ROS2 workspace built
+#   3 - Engine & gem registration check
+#   4 - Full runtime image build
+#   5 - (no-op, kept for compatibility)
 #   all - Run all stages (default)
 #
 # Examples:
 #   ./scripts/build.sh 1      # Build just the base image
-#   ./scripts/build.sh 5      # Seed host cache from image
+#   ./scripts/build.sh 5      # No-op (kept for compatibility)
 #   ./scripts/build.sh all    # Build everything
 #   ./scripts/build.sh        # Same as 'all'
 #
@@ -136,47 +136,7 @@ ensure_o3de_deb_cache() {
 }
 
 seed_host_asset_cache() {
-    check_command docker
-
-    local host_cache_linux="$PROJECT_ROOT/Project/Cache/linux"
-    local stamp_file="$host_cache_linux/.ap_autorun.stamp"
-    local host_uid
-    local host_gid
-    host_uid=$(id -u)
-    host_gid=$(id -g)
-
-    if ! docker image inspect "${IMAGE_NAME}:latest" &> /dev/null; then
-        die "Image ${IMAGE_NAME}:latest not found; run stage 4 first"
-    fi
-
-    mkdir -p "$host_cache_linux"
-
-    # Normalize ownership in case previous runs wrote root-owned files via bind mounts.
-    docker run --rm \
-        -v "$PROJECT_ROOT/Project/Cache:/cache" \
-        "${IMAGE_NAME}:latest" \
-        bash -lc "mkdir -p /cache/linux && chown -R $host_uid:$host_gid /cache" >/dev/null 2>&1 || true
-
-    rm -rf "$host_cache_linux"
-    mkdir -p "$host_cache_linux"
-
-    log INFO "Seeding host asset cache from ${IMAGE_NAME}:latest..."
-    local container_id
-    container_id=$(docker create "${IMAGE_NAME}:latest" /bin/true)
-
-    # Use default o3de user workspace path (since we build with default args now)
-    local container_workspace="/home/o3de/workspace"
-
-    if docker cp "$container_id:${container_workspace}/Project/Cache/linux/." "$host_cache_linux/" 2>> "$LOG_FILE"; then
-        touch "$stamp_file"
-        log OK "Host asset cache seeded: $host_cache_linux"
-    else
-        docker rm -f "$container_id" >/dev/null 2>&1 || true
-        log WARN "Failed to seed host asset cache from image; first run will process assets"
-        return
-    fi
-
-    docker rm -f "$container_id" >/dev/null 2>&1 || true
+    log INFO "No pre-built project to seed (projects are created at runtime)"
 }
 
 stage_header() {
@@ -322,9 +282,9 @@ stage_2_docker_o3de() {
     log INFO "This installs O3DE $O3DE_VERSION (.deb) and registers gems"
     log INFO "Expected time: 10-20 minutes (depends on network/cache)"
     
-    # Build the 'o3de-builder' target
+    # Build the 'ros2-builder' target
     if ! docker build \
-        --target o3de-builder \
+        --target ros2-builder \
         --tag "${IMAGE_NAME}:builder" \
         --build-arg ROS_VERSION="$ROS_DISTRO_BUILD" \
         --build-arg O3DE_VERSION="$O3DE_VERSION" \
@@ -349,53 +309,47 @@ stage_2_docker_o3de() {
 }
 
 # =============================================================================
-# Stage 3: Project Registration
+# Stage 3: Registration Check
 # =============================================================================
-# Verifies the project can be registered with O3DE.
+# Verifies the engine and gems are registered with O3DE.
 # This catches issues with:
-#   - project.json validity
-#   - Gem dependencies
-#   - Project structure
+#   - Engine registration
+#   - Gem registration
 # =============================================================================
 
-stage_3_project_registration() {
-    stage_header 3 "Project Registration"
+stage_3_registration_check() {
+    stage_header 3 "Registration Check"
     
     check_command docker
     
-    log INFO "Checking project registration..."
+    log INFO "Checking engine registration..."
     
-    # This is checked during the o3de-builder stage
-    # We verify by checking if the project appears in the registry
-    if ! docker run --rm "${IMAGE_NAME}:builder" \
-        bash -lc '/opt/O3DE/'"$O3DE_INSTALL_VERSION"'/scripts/o3de.sh get-registered --projects' 2>&1 | \
-        tee -a "$LOG_FILE" | grep -q "Project"; then
-        log WARN "Project may not be registered (this might be OK if path differs)"
+    if docker run --rm "${IMAGE_NAME}:builder" \
+        bash -lc '/opt/O3DE/'"$O3DE_INSTALL_VERSION"'/scripts/o3de.sh get-registered --engines' 2>&1 | \
+        tee -a "$LOG_FILE" | grep -q "o3de"; then
+        log OK "Engine is registered"
     else
-        log OK "Project is registered"
+        log WARN "Engine registration not detected"
     fi
     
     stage_complete 3
 }
 
 # =============================================================================
-# Stage 4: Full Build
+# Stage 4: Full Runtime Image Build
 # =============================================================================
-# Builds the complete project including Editor and GameLauncher.
+# Builds the complete runtime image.
 # This catches issues with:
-#   - CMake configuration
-#   - C++ compilation
-#   - Asset processing
+#   - Runtime stage configuration
+#   - Entrypoint setup
 # =============================================================================
 
 stage_4_full_build() {
-    stage_header 4 "Full Project Build"
+    stage_header 4 "Full Runtime Image Build"
     
     check_command docker
     
-    log INFO "Building complete image with project..."
-    log INFO "This compiles O3DE project (C++ build)"
-    log INFO "Expected time: 1-3 hours"
+    log INFO "Building complete runtime image..."
     
     # Build the final 'runtime' target
     if ! docker build \
@@ -417,17 +371,6 @@ stage_4_full_build() {
     if ! docker image inspect "${IMAGE_NAME}:latest" &> /dev/null; then
         die "Final image was not created"
     fi
-    
-    # Check Editor binary exists
-    log INFO "Checking Editor binary..."
-    if docker run --rm "${IMAGE_NAME}:latest" \
-        test -f /opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/Editor; then
-        log OK "Editor binary exists"
-    else
-        log WARN "Editor binary not found in expected O3DE install path"
-    fi
-
-    seed_host_asset_cache
     
     stage_complete 4
     
@@ -505,13 +448,13 @@ main() {
             stage_0_ros2_workspace
             stage_1_docker_base
             stage_2_docker_o3de
-            stage_3_project_registration
+            stage_3_registration_check
             ;;
         4|all)
             stage_0_ros2_workspace
             stage_1_docker_base
             stage_2_docker_o3de
-            stage_3_project_registration
+            stage_3_registration_check
             stage_4_full_build
             ;;
         5|seed|seed-cache)
@@ -523,10 +466,10 @@ main() {
             echo "Stages:"
             echo "  0   - ROS2 workspace verification only"
             echo "  1   - Docker base image (ROS2)"
-            echo "  2   - Docker + O3DE installation"
-            echo "  3   - Project registration check"
-            echo "  4   - Full build (same as 'all')"
-            echo "  5   - Seed host asset cache from latest image"
+            echo "  2   - Docker + O3DE + ROS2 workspace build"
+            echo "  3   - Engine & gem registration check"
+            echo "  4   - Full runtime image build (same as 'all')"
+            echo "  5   - (no-op, kept for compatibility)"
             echo "  all - Run all stages (default)"
             exit 1
             ;;

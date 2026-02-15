@@ -1,12 +1,6 @@
-# O3DE Build Artifacts
-Project/build/
-Project/user/
-Project/Cache/
-Project/*.log
-
-# O3DE Editor Cache
-*.assetinfo
-*.azasset
+# O3DE Projects (created at runtime, not tracked)
+projects/*
+!projects/.gitkeep
 
 # ROS2 Colcon Workspace
 ros2_ws/build/
@@ -56,7 +50,3 @@ AMD GPU Containers for Robotics.pdf
 o3de-ros2-deep-research.md
 Untitled.png
 
-# Auto-generated local runtime overrides
-Project/Registry/physxdebugconfiguration.setreg
-Project/Registry/physxdefaultsceneconfiguration.setreg
-Project/Registry/physxsystemconfiguration.setreg

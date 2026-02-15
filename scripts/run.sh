@@ -30,7 +30,7 @@ Options:
   --process-assets  Force AssetProcessorBatch before game launch
   --skip-process-assets  Never run AssetProcessorBatch before game launch
   --build-ros       Rebuild ROS2 workspace (colcon build) before launch
-  --project NAME    Mount specific project directory (default: Project)
+  --project NAME    Project name within projects/ directory (default: MyProject)
 
 Examples:
   ./scripts/run.sh shell --nvidia
@@ -58,60 +58,26 @@ O3DE_INSTALL_VERSION="${O3DE_INSTALL_VERSION:-25.10.2}"
 USE_MOUNTS=1
 PROCESS_ASSETS_MODE="auto"
 BUILD_ROS=0
-PROJECT_NAME="Project"
+PROJECT_NAME="MyProject"
 MOUNT_OPTS=()
 CONTAINER_USER="o3de"
 CONTAINER_WORKSPACE="/home/${CONTAINER_USER}/workspace"
-
-seed_host_project_data() {
-    if [[ "$USE_MOUNTS" != "1" ]]; then
-        return
-    fi
-
-    if [[ "$PROJECT_NAME" != "Project" ]]; then
-        return
-    fi
-
-    local host_cache_linux="$PROJECT_ROOT/$PROJECT_NAME/Cache/linux"
-    local host_build="$PROJECT_ROOT/$PROJECT_NAME/build"
-    local stamp_file="$host_cache_linux/.ap_autorun.stamp"
-
-    # If we have the stamp, we assume everything is seeded
-    if [[ -f "$stamp_file" ]]; then
-        return
-    fi
-
-    mkdir -p "$host_cache_linux"
-    mkdir -p "$host_build"
-
-    echo "[INFO] First run: seeding host cache and build artifacts from image..."
-
-    local container_id
-    container_id=$(docker create "${IMAGE_NAME}:${TAG}" /bin/true)
-
-    docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/Cache/linux/." "$host_cache_linux/" >/dev/null 2>&1 || echo "[WARN] Failed to copy Cache"
-    docker cp "$container_id:${CONTAINER_WORKSPACE}/Project/build/." "$host_build/" >/dev/null 2>&1 || echo "[WARN] Failed to copy build artifacts"
-    
-    touch "$stamp_file"
-    
-    docker rm -f "$container_id" >/dev/null 2>&1 || true
-}
 
 build_mount_opts() {
     if [[ "$USE_MOUNTS" != "1" ]]; then
         return
     fi
 
-    local host_project="$PROJECT_ROOT/$PROJECT_NAME"
     local host_ros2="$PROJECT_ROOT/ros2_ws"
 
     # Always mount ROS2 src
     mkdir -p "$host_ros2/src"
     MOUNT_OPTS+=(-v "$host_ros2/src:${CONTAINER_WORKSPACE}/ros2_ws/src:rw")
 
-    # Mount project directory (root) to allow full access/persistence including project.json
-    mkdir -p "$host_project"
-    MOUNT_OPTS+=(-v "$host_project:${CONTAINER_WORKSPACE}/$PROJECT_NAME:rw")
+    # Mount projects directory to allow full access/persistence
+    local host_projects="$PROJECT_ROOT/projects"
+    mkdir -p "$host_projects"
+    MOUNT_OPTS+=(-v "$host_projects:${CONTAINER_WORKSPACE}/projects:rw")
 }
 
 while [[ $# -gt 0 ]]; do
@@ -179,7 +145,6 @@ if ! docker image inspect "${IMAGE_NAME}:${TAG}" &> /dev/null; then
 fi
 
 build_mount_opts
-seed_host_project_data
 
 CONTAINER_NAME="o3de-playground-run"
 
@@ -339,7 +304,7 @@ case "$COMMAND" in
         ensure_container_running
         PRE_CMD=$(get_ros_build_cmd)
         
-        PROJECT_PATH="${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+        PROJECT_PATH="${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
         
         # Auto-create project if missing
         # We check for project.json inside the container.
@@ -355,24 +320,21 @@ case "$COMMAND" in
         ensure_container_running
         PRE_CMD=$(get_ros_build_cmd)
         
-        GAME_BIN_NAME="Playground.GameLauncher"
-        if [[ "$PROJECT_NAME" != "Project" ]]; then
-             GAME_BIN_NAME="${PROJECT_NAME}.GameLauncher"
-        fi
+        GAME_BIN_NAME="${PROJECT_NAME}.GameLauncher"
         
         AP_BIN="/opt/O3DE/${O3DE_INSTALL_VERSION}/bin/Linux/profile/Default/AssetProcessorBatch"
-        GAME_BIN="${CONTAINER_WORKSPACE}/$PROJECT_NAME/build/linux/bin/profile/${GAME_BIN_NAME}"
-        STAMP_PATH="${CONTAINER_WORKSPACE}/$PROJECT_NAME/Cache/linux/.ap_autorun.stamp"
+        GAME_BIN="${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}/build/linux/bin/profile/${GAME_BIN_NAME}"
+        STAMP_PATH="${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}/Cache/linux/.ap_autorun.stamp"
         
         if [[ "$PROCESS_ASSETS_MODE" == "always" ]]; then
-            CMD="${PRE_CMD}$AP_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME && $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+            CMD="${PRE_CMD}$AP_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME} && $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
         elif [[ "$PROCESS_ASSETS_MODE" == "never" ]]; then
-            CMD="${PRE_CMD}$GAME_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+            CMD="${PRE_CMD}$GAME_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
         else
-            if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/$PROJECT_NAME/Cache/linux/.ap_autorun.stamp" ]]; then
-                CMD="${PRE_CMD}echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+            if [[ "$USE_MOUNTS" == "1" && -f "$PROJECT_ROOT/projects/$PROJECT_NAME/Cache/linux/.ap_autorun.stamp" ]]; then
+                CMD="${PRE_CMD}echo '[INFO] Asset cache already prepared. Use --process-assets to force.'; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
             else
-                CMD="${PRE_CMD}mkdir -p ${CONTAINER_WORKSPACE}/$PROJECT_NAME/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME && touch $STAMP_PATH; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/$PROJECT_NAME"
+                CMD="${PRE_CMD}mkdir -p ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}/Cache/linux; echo '[INFO] Processing assets (auto mode)...'; $AP_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME} && touch $STAMP_PATH; $GAME_BIN --project-path ${CONTAINER_WORKSPACE}/projects/${PROJECT_NAME}"
             fi
         fi
         echo -e "${GREEN}Running: $CMD${NC}"

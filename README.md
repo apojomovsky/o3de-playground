@@ -42,9 +42,8 @@ cd o3de-playground
 The build script automatically:
 - Downloads and caches O3DE 2510.2 installer
 - Installs ROS2 dependencies via rosdep
-- Compiles the O3DE project
+- Registers O3DE engine and gems (ROS2, Sensors, Controllers, etc.)
 - Builds the ROS2 workspace
-- Seeds host-side asset cache for fast iteration
 
 ### 2. Launch the Editor
 
@@ -84,20 +83,16 @@ The `scripts/` directory contains three main tools:
 # Build specific stages
 ./scripts/build.sh 1    # Base ROS2 image only
 ./scripts/build.sh 2    # + O3DE installation
-./scripts/build.sh 3    # + Project registration  
-./scripts/build.sh 4    # + Full project build
-
-# Seed host cache (for fast asset iteration)
-./scripts/build.sh seed-cache
+./scripts/build.sh 3    # + Registration check
+./scripts/build.sh 4    # + Full runtime image
 ```
 
 **Stages:**
 - **Stage 0**: ROS2 workspace verification
 - **Stage 1**: Docker base image (ROS2 Jazzy)
-- **Stage 2**: O3DE installation and gem registration
-- **Stage 3**: Project registration
-- **Stage 4**: Full build (project + assets + ROS2 workspace)
-- **Stage 5**: Seed host asset cache
+- **Stage 2**: O3DE installation, gem registration, ROS2 workspace build
+- **Stage 3**: Engine & gem registration check
+- **Stage 4**: Full runtime image
 
 #### `run.sh` - Launch Containers
 
@@ -122,7 +117,8 @@ The `shell` command is smart - if a container is already running (e.g. you launc
 - `--nvidia` - Use NVIDIA GPU (auto-detected if nvidia-smi found)
 - `--amd` - Use AMD GPU (auto-detected if /dev/kfd exists)
 - `--audio` - Enable host audio passthrough
-- `--no-mounts` - Disable project bind mounts (use container copy)
+- `--project NAME` - Project name within `projects/` directory (default: MyProject)
+- `--no-mounts` - Disable host bind mounts (use container copy)
 - `--process-assets` - Force asset processing before game launch
 - `--skip-process-assets` - Skip asset processing entirely
 - `--build-ros` - Rebuild ROS2 workspace (colcon build) before launch
@@ -154,21 +150,19 @@ The container automatically bind-mounts key directories for fast iteration:
 
 ```
 Host                          → Container
-Project/Levels/              → /home/o3de/workspace/Project/Levels/
-Project/Registry/            → /home/o3de/workspace/Project/Registry/
-Project/Assets/              → /home/o3de/workspace/Project/Assets/
-Project/Scripts/             → /home/o3de/workspace/Project/Scripts/
-Project/Cache/               → /home/o3de/workspace/Project/Cache/
-ros2_ws/                     → /home/o3de/workspace/ros2_ws/
+projects/                    → /home/o3de/workspace/projects/
+ros2_ws/src/                 → /home/o3de/workspace/ros2_ws/src/
 ```
 
-### Creating/Opening Custom Projects
+### Creating/Opening Projects
 
-To create or open a project other than the default `Project`:
+Projects are auto-created on first launch if they don't exist:
 
-1.  **Prepare Directory**: `mkdir ~/o3de-playground/MyProject`
-2.  **Launch**: `./scripts/run.sh editor --amd --project MyProject`
-3.  **Project Manager**: Create new project in `/home/o3de/workspace/MyProject`.
+```bash
+./scripts/run.sh editor --amd --project MyProject
+```
+
+This creates the project in `projects/MyProject/` (host) / `/home/o3de/workspace/projects/MyProject` (container) and opens the Editor.
 
 **Fast Iteration Loop:**
 
@@ -178,10 +172,10 @@ To create or open a project other than the default `Project`:
 
 ```bash
 # Edit in Editor
-./scripts/run.sh editor --amd
+./scripts/run.sh editor --amd --project MyProject
 
 # Test changes immediately
-./scripts/run.sh game --amd
+./scripts/run.sh game --amd --project MyProject
 ```
 
 ### Working with ROS2
@@ -235,14 +229,7 @@ o3de-playground/
 │   ├── Dockerfile            # Multi-stage build definition
 │   ├── cache/                # Cached O3DE .deb files
 │   └── .dockerignore         # Build context exclusions
-├── Project/                  # O3DE project
-│   ├── project.json          # Project config (gems, version)
-│   ├── CMakeLists.txt        # Build configuration
-│   ├── Gem/                  # Project-specific code
-│   ├── Assets/               # Robot models, materials, prefabs
-│   ├── Levels/               # Simulation environments
-│   ├── Registry/             # Asset configurations
-│   └── Cache/                # Asset cache (gitignored)
+├── projects/                 # O3DE projects root (created at runtime, gitignored)
 ├── ros2_ws/                  # ROS2 colcon workspace
 │   └── src/
 │       ├── playground_nav/   # Nav2 launch configuration
@@ -275,14 +262,12 @@ vim ros2_ws/src/playground_nav/launch/config/navigation_params.yaml
 vim ros2_ws/src/playground_nav/launch/config/slam_params.yaml
 ```
 
-### O3DE Project
+### O3DE Projects
+
+Projects live in `projects/` and are created at runtime via the Editor. To modify a project's gem configuration:
 
 ```bash
-# Add/remove gems
-vim Project/project.json
-
-# Rebuild project
-./scripts/build.sh 4
+vim projects/MyProject/project.json
 ```
 
 ## Troubleshooting
@@ -335,10 +320,10 @@ The container runs as your host user (not root), so file ownership matches autom
 
 ```bash
 # Check ownership
-ls -la Project/
+ls -la projects/
 
 # Fix if needed (should rarely be necessary)
-sudo chown -R $(whoami):$(whoami) Project/
+sudo chown -R $(whoami):$(whoami) projects/
 ```
 
 ### ROS2 Issues
@@ -408,7 +393,7 @@ The Dockerfile uses multi-stage builds for efficient layer caching:
 Stage 1: base          → O3DE build tools + ROS2 base
 Stage 2: ros-deps      → rosdep-installed dependencies
 Stage 3: o3de-deps     → O3DE + gems + 3rdParty packages
-Stage 4: o3de-builder  → Project build
+Stage 4: ros2-builder  → ROS2 workspace build
 Stage 5: runtime       → Final image with user/GID
 ```
 
@@ -419,11 +404,7 @@ Stage 5: runtime       → Final image with user/GID
 # → Rebuilds stage 5 only (~10 seconds)
 docker build --target runtime ...
 
-# Project code changed (Project/, ros2_ws/)
-# → Rebuilds stages 4-5 only (no dependency re-download)
-docker build ...
-
-# ROS2 workspace dependencies changed (package.xml)
+# ROS2 workspace packages changed (package.xml)
 # → Rebuilds stages 2-5 (rosdep re-runs)
 docker build ...
 ```
