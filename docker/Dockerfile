@@ -231,7 +231,10 @@ COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-deps $WORKSPACE/o3de-extras $WOR
 COPY --chown=${USER_ID}:${GROUP_ID} --from=ros2-builder $WORKSPACE/ros2_ws $WORKSPACE/ros2_ws
 COPY --chown=${USER_ID}:${GROUP_ID} --from=o3de-deps /home/${USERNAME}/.o3de /home/${USERNAME}/.o3de
 
-RUN mkdir -p $WORKSPACE/projects
+RUN mkdir -p $WORKSPACE/projects \
+    && if [ -f /home/${USERNAME}/.o3de/o3de_manifest.json ]; then \
+        sed -i 's|"default_projects_folder":.*|"default_projects_folder": "'$WORKSPACE'/projects",|' /home/${USERNAME}/.o3de/o3de_manifest.json; \
+    fi
 
 # Set environment variables
 ENV O3DE_ROOT=/opt/O3DE/${O3DE_INSTALL_VERSION}
